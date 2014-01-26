@@ -16,6 +16,8 @@ faculty_link_pattern = re.compile('<li><a href="(/people/.*)">.*</a></li>')
 home_page_contents_pattern = re.compile('<div id="pagetitle">(.*)<div id="disclaimer_people">', re.S)
 
 # Functions
+
+# Process one faculty's site
 def  process_faculty(faculty_home_url):
     # print "processing "+faculty_home_url
     faculty_page = urllib2.urlopen(faculty_home_url)
@@ -26,7 +28,10 @@ def  process_faculty(faculty_home_url):
     courses_links = re.findall(courses_pattern, faculty_page_raw)
     research_link = re.findall(research_pattern, faculty_page_raw)
     expert_link = re.findall(expert_pattern, faculty_page_raw)
-    faculty_page_contents = home_page_contents_pattern.search(faculty_page_raw)
+    faculty_page_match = home_page_contents_pattern.search(faculty_page_raw)
+    if faculty_page_match:
+        faculty_page_contents = faculty_page_match.group(1)
+        print faculty_page_contents
         
     has_publications_page = False
     has_all_courses_page = False
@@ -57,12 +62,13 @@ def  process_faculty(faculty_home_url):
         print  "Found courses at " + courses_url
         try:
             all_courses_page = urllib2.urlopen(courses_url)
+            all_courses_raw = all_courses_page.read()
+            all_course_links = re.findall(course_pattern, all_courses_raw)
+            process_courses(faculty_home_url, all_course_links)
         except:
-            print "Could not open page " + courses_url
-        all_courses_raw = all_courses_page.read()
-        all_course_links = re.findall(course_pattern, all_courses_raw)
-        process_courses(faculty_home_url, all_course_links)
-
+            print "Could not open page"
+        
+# Process all of the courses for one faculty
 def process_courses(base_url, link_list):
     for course_link in link_list:
         course_url = base_url + "/courses/" + course_link + "/index.html"
@@ -74,7 +80,7 @@ def process_courses(base_url, link_list):
             course_match = course_content_pattern.search(course_raw)
             if course_match:
                 course_content = course_match.group(1)
-                print course_content
+                # print course_content
             else:
                 print "no match found"
         else:
