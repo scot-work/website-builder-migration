@@ -3,11 +3,13 @@ import urllib2
 from urllib2 import HTTPError
 import re
 import sys
+import os
 
 #constants
 sjsu_home_url = "http://www.sjsu.edu"
 faculty_list_url = "http://www.sjsu.edu/people/a-z.jsp"
 courses_pattern = re.compile('\/people\/.*\/courses\/')
+faculty_directory_pattern = re.compile('http://www.sjsu.edu/people/(.*)/?')
 course_pattern = re.compile('\/courses\/(.*)"')
 publications_pattern = re.compile('\/publications\/')
 research_pattern = re.compile('\/research\/')
@@ -23,13 +25,22 @@ page_contents_pattern = re.compile(
 
 # Process one faculty site
 def  process_faculty_home_page(faculty_home_url):
-    # print "processing "+faculty_home_url
+    print "processing "+faculty_home_url
+    directory_name_match = faculty_directory_pattern.match(faculty_home_url)
+    directory = directory_name_match.group(1)
+    print directory
+    home_output = open(directory+'/index.pcf', 'w+')
+    
     try:
         faculty_page = urllib2.urlopen(faculty_home_url)
     except HTTPError, e:
-        print e.code
+        print "HTTP error: " + e.code + " opening " + faculty_home_url
         sys.exit()
-    # print data.read()
+    
+    # Create output directory
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    
     faculty_page_raw = faculty_page.read()
     publications_link = re.findall(publications_pattern, faculty_page_raw)
     courses_links = re.findall(courses_pattern, faculty_page_raw)
@@ -61,27 +72,41 @@ def  process_faculty_home_page(faculty_home_url):
     faculty_page_match = page_contents_pattern.search(faculty_page_raw)
     if faculty_page_match:
         faculty_page_contents = faculty_page_match.group(1)
+        home_output.write('<div>'+faculty_page_contents)
+        home_output.close()
     
     # Get expert info
     if has_expert_page:
         print "Found expert at " + expert_url
         expert_contents = get_page_contents(expert_url, 
                                             page_contents_pattern)
-        # print expert_contents
+        if not os.path.exists(directory+'/expert/'):
+            os.makedirs(directory+'/expert/')
+        expert_output = open(directory+'/expert/index.pcf', 'w+')
+        expert_output.write(expert_contents)
+        expert_output.close()
         
     # Get research info
     if has_research_page:
         print "Found research at " + research_url
         research_contents = get_page_contents(research_url, 
                                               page_contents_pattern)
-        # print research_contents
+        if not os.path.exists(directory+'/research/'):
+            os.makedirs(directory+'/research/')
+        research_output = open(directory+'/research/index.pcf', 'w+')
+        research_output.write(research_contents)
+        research_output.close()
     
     # Get publications info    
     if has_publications_page:
         print "Found publications at " + publications_url
         publications_contents = get_page_contents(publications_url, 
                                                   page_contents_pattern)
-        # print publications_contents
+        if not os.path.exists(directory+'/publications/'):
+            os.makedirs(directory+'/publications/')
+        publications_output = open(directory+'/publications/index.pcf', 'w+')
+        publications_output.write(publications_contents)
+        publications_output.close()
         
     #  Get  course  info
     if has_all_courses_page:
