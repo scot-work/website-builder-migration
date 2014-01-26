@@ -11,14 +11,19 @@ course_pattern = re.compile('\/courses\/(.*)"')
 publications_pattern = re.compile('\/publications\/')
 research_pattern = re.compile('\/research\/')
 expert_pattern = re.compile('\/expert\/')
-course_content_pattern = re.compile('<div id="col_1_of_1_int_maintemplate">(.*)<div id="disclaimer_people">',re.S)
-faculty_link_pattern = re.compile('<li><a href="(/people/.*)">.*</a></li>')
-home_page_contents_pattern = re.compile('<div id="pagetitle">(.*)<div id="disclaimer_people">', re.S)
+course_content_pattern = re.compile(
+    '<div id="col_1_of_1_int_maintemplate">(.*)<div id="disclaimer_people">',re.S)
+faculty_link_pattern = re.compile(
+    '<li><a href="(/people/.*)">.*</a></li>')
+home_page_contents_pattern = re.compile(
+    '<div id="pagetitle">(.*)<div id="disclaimer_people">', re.S)
+page_contents_pattern = re.compile(
+    '<div id="pagetitle">(.*)<div id="disclaimer_people">', re.S)
 
 # Functions
 
-# Process one faculty's site
-def  process_faculty(faculty_home_url):
+# Process one faculty site
+def  process_faculty_home_page(faculty_home_url):
     # print "processing "+faculty_home_url
     faculty_page = urllib2.urlopen(faculty_home_url)
     # print data.read()
@@ -28,10 +33,6 @@ def  process_faculty(faculty_home_url):
     courses_links = re.findall(courses_pattern, faculty_page_raw)
     research_link = re.findall(research_pattern, faculty_page_raw)
     expert_link = re.findall(expert_pattern, faculty_page_raw)
-    faculty_page_match = home_page_contents_pattern.search(faculty_page_raw)
-    if faculty_page_match:
-        faculty_page_contents = faculty_page_match.group(1)
-        print faculty_page_contents
         
     has_publications_page = False
     has_all_courses_page = False
@@ -54,46 +55,83 @@ def  process_faculty(faculty_home_url):
         has_research_page = True
         research_url = faculty_home_url + '/research/'
                 
-    if (has_publications_page):
-        publications_source = urllib2.urlopen(publications_url)
-                
-    #  Get  course  data
-    if (has_all_courses_page):
+    # Get faculty info
+    faculty_page_match = home_page_contents_pattern.search(faculty_page_raw)
+    if faculty_page_match:
+        faculty_page_contents = faculty_page_match.group(1)
+    
+    # Get expert info
+    if has_expert_page:
+        print "Found experth at " + expert_url
+        expert_contents = get_page_contents(expert_url, 
+                                            page_contents_pattern)
+        print expert_contents
+        
+    # Get research info
+    if has_research_page:
+        print "Found research at " + research_url
+        research_contents = get_page_contents(research_url, 
+                                              page_contents_pattern)
+        # print research_contents
+    
+    # Get publications info    
+    if has_publications_page:
+        print "Found publications at " + publications_url
+        publications_contents = get_page_contents(publications_url, 
+                                                  page_contents_pattern)
+        # print publications_contents
+        
+    #  Get  course  info
+    if has_all_courses_page:
         print  "Found courses at " + courses_url
         try:
             all_courses_page = urllib2.urlopen(courses_url)
             all_courses_raw = all_courses_page.read()
-            all_course_links = re.findall(course_pattern, all_courses_raw)
-            process_courses(faculty_home_url, all_course_links)
+            all_course_links = re.findall(
+                                          course_pattern, 
+                                          all_courses_raw)
+            process_faculty_courses_page(
+                                         faculty_home_url, 
+                                         all_course_links)
         except:
             print "Could not open page"
         
+# Open a URL, read the contents, return part that matches pattern
+def get_page_contents(page_url, content_pattern):
+    try:
+        page = urllib2.urlopen(page_url)
+        raw = page.read()
+        match = content_pattern.search(raw)
+        if match:
+            contents = match.group(1)
+            return contents
+        else:
+            print "no match found in " + page_url
+    except:
+        print "Could not open page " + page_url
+
 # Process all of the courses for one faculty
-def process_courses(base_url, link_list):
+def process_faculty_courses_page(base_url, link_list):
     for course_link in link_list:
         course_url = base_url + "/courses/" + course_link + "/index.html"
         print "Opening course: " + course_link
-        if (not(course_link.startswith('index.html')) and (len(course_link)  >  0)):
+        if (not(course_link.startswith('index.html')) 
+                and (len(course_link)  >  0)):
             print  "Found course: " + course_url
-            course_page = urllib2.urlopen(course_url)
-            course_raw = course_page.read()
-            course_match = course_content_pattern.search(course_raw)
-            if course_match:
-                course_content = course_match.group(1)
-                # print course_content
-            else:
-                print "no match found"
+            course_contents = get_page_contents(
+                                                course_url, 
+                                                course_content_pattern)
+            # print course_contents
         else:
             print "Skipping link: " + course_link
-#  Get list of all active faculty sites
-data = urllib2.urlopen(faculty_list_url)
+            
+# Main loop
 
+# Get list of all published faculty sites
+data = urllib2.urlopen(faculty_list_url)
 all_faculty_links = re.findall(faculty_link_pattern, data.read())
-print "Found " + str(len(all_faculty_links)) + " faculty sites"
 
 #  Process  each  faculty  site
 for faculty_home_link in all_faculty_links:
     current_url = sjsu_home_url + faculty_home_link
-    process_faculty(current_url)
-
-print "done processing"
+    process_faculty_home_page(current_url)
