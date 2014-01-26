@@ -1,5 +1,6 @@
 #imports
 import urllib2
+from urllib2 import HTTPError
 import re
 import sys
 
@@ -15,8 +16,6 @@ course_content_pattern = re.compile(
     '<div id="col_1_of_1_int_maintemplate">(.*)<div id="disclaimer_people">',re.S)
 faculty_link_pattern = re.compile(
     '<li><a href="(/people/.*)">.*</a></li>')
-home_page_contents_pattern = re.compile(
-    '<div id="pagetitle">(.*)<div id="disclaimer_people">', re.S)
 page_contents_pattern = re.compile(
     '<div id="pagetitle">(.*)<div id="disclaimer_people">', re.S)
 
@@ -25,11 +24,14 @@ page_contents_pattern = re.compile(
 # Process one faculty site
 def  process_faculty_home_page(faculty_home_url):
     # print "processing "+faculty_home_url
-    faculty_page = urllib2.urlopen(faculty_home_url)
+    try:
+        faculty_page = urllib2.urlopen(faculty_home_url)
+    except HTTPError, e:
+        print e.code
+        sys.exit()
     # print data.read()
     faculty_page_raw = faculty_page.read()
-    publications_link = re.findall(publications_pattern, 
-                                   faculty_page_raw)
+    publications_link = re.findall(publications_pattern, faculty_page_raw)
     courses_links = re.findall(courses_pattern, faculty_page_raw)
     research_link = re.findall(research_pattern, faculty_page_raw)
     expert_link = re.findall(expert_pattern, faculty_page_raw)
@@ -56,16 +58,16 @@ def  process_faculty_home_page(faculty_home_url):
         research_url = faculty_home_url + '/research/'
                 
     # Get faculty info
-    faculty_page_match = home_page_contents_pattern.search(faculty_page_raw)
+    faculty_page_match = page_contents_pattern.search(faculty_page_raw)
     if faculty_page_match:
         faculty_page_contents = faculty_page_match.group(1)
     
     # Get expert info
     if has_expert_page:
-        print "Found experth at " + expert_url
+        print "Found expert at " + expert_url
         expert_contents = get_page_contents(expert_url, 
                                             page_contents_pattern)
-        print expert_contents
+        # print expert_contents
         
     # Get research info
     if has_research_page:
@@ -126,12 +128,15 @@ def process_faculty_courses_page(base_url, link_list):
             print "Skipping link: " + course_link
             
 # Main loop
+if len(sys.argv) > 1:
+    # print sys.argv[1]
+    process_faculty_home_page(sys.argv[1])
+else:
+    # Get list of all published faculty sites
+    data = urllib2.urlopen(faculty_list_url)
+    all_faculty_links = re.findall(faculty_link_pattern, data.read())
 
-# Get list of all published faculty sites
-data = urllib2.urlopen(faculty_list_url)
-all_faculty_links = re.findall(faculty_link_pattern, data.read())
-
-#  Process  each  faculty  site
-for faculty_home_link in all_faculty_links:
-    current_url = sjsu_home_url + faculty_home_link
-    process_faculty_home_page(current_url)
+    #  Process  each  faculty  site
+    for faculty_home_link in all_faculty_links:
+        current_url = sjsu_home_url + faculty_home_link
+        process_faculty_home_page(current_url)
