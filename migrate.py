@@ -13,19 +13,20 @@ research_pattern = re.compile('\/research\/')
 expert_pattern = re.compile('\/expert\/')
 course_content_pattern = re.compile('<div id="col_1_of_1_int_maintemplate">(.*)<div id="disclaimer_people">',re.S)
 faculty_link_pattern = re.compile('<li><a href="(/people/.*)">.*</a></li>')
+home_page_contents_pattern = re.compile('<div id="pagetitle">(.*)<div id="disclaimer_people">', re.S)
 
-#  functions
-
+# Functions
 def  process_faculty(faculty_home_url):
     # print "processing "+faculty_home_url
     faculty_page = urllib2.urlopen(faculty_home_url)
     # print data.read()
-    faculty_page_contents = faculty_page.read()
+    faculty_page_raw = faculty_page.read()
     publications_link = re.findall(publications_pattern, 
-                                   faculty_page_contents)
-    courses_links = re.findall(courses_pattern, faculty_page_contents)
-    research_link = re.findall(research_pattern, faculty_page_contents)
-    expert_link = re.findall(expert_pattern, faculty_page_contents)
+                                   faculty_page_raw)
+    courses_links = re.findall(courses_pattern, faculty_page_raw)
+    research_link = re.findall(research_pattern, faculty_page_raw)
+    expert_link = re.findall(expert_pattern, faculty_page_raw)
+    faculty_page_contents = home_page_contents_pattern.search(faculty_page_raw)
         
     has_publications_page = False
     has_all_courses_page = False
@@ -34,19 +35,19 @@ def  process_faculty(faculty_home_url):
         
     if (len(publications_link) > 0):
         has_publications_page = True
-        publications_url = faculty_home_url+'/publications/'
+        publications_url = faculty_home_url + '/publications/'
                 
     if (len(courses_links) > 0):
         has_all_courses_page = True
-        courses_url = faculty_home_url+'/courses/'
+        courses_url = faculty_home_url + '/courses/'
                 
     if (len(expert_link) > 0):
         has_expert_page = True
-        expert_url = faculty_home_url+'/expert/'
+        expert_url = faculty_home_url + '/expert/'
                 
     if (len(research_link) > 0):
         has_research_page = True
-        research_url = faculty_home_url+'/research/'
+        research_url = faculty_home_url + '/research/'
                 
     if (has_publications_page):
         publications_source = urllib2.urlopen(publications_url)
