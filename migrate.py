@@ -7,10 +7,11 @@ import os
 
 #constants
 sjsu_home_url = "http://www.sjsu.edu"
+output_root = "people"
 faculty_list_url = "http://www.sjsu.edu/people/a-z.jsp"
 courses_pattern = re.compile('\/people\/.*\/courses\/')
 faculty_directory_pattern = re.compile('http://www.sjsu.edu/people/(.*)/?')
-course_pattern = re.compile('\/courses\/(.*)"')
+course_name_pattern = re.compile('\/courses\/(.*)"')
 publications_pattern = re.compile('\/publications\/')
 research_pattern = re.compile('\/research\/')
 expert_pattern = re.compile('\/expert\/')
@@ -20,6 +21,8 @@ faculty_link_pattern = re.compile(
     '<li><a href="(/people/.*)">.*</a></li>')
 page_contents_pattern = re.compile(
     '<div id="pagetitle">(.*)<div id="disclaimer_people">', re.S)
+courses_page_contents_pattern = re.compile(
+          '<h1 class="hidden">Main Content</h1>(.*)<h1 class="hidden">', re.S)
 
 # Functions
 
@@ -27,9 +30,7 @@ page_contents_pattern = re.compile(
 def  process_faculty_home_page(faculty_home_url):
     print "processing "+faculty_home_url
     directory_name_match = faculty_directory_pattern.match(faculty_home_url)
-    directory = directory_name_match.group(1)
-    print directory
-    home_output = open(directory+'/index.pcf', 'w+')
+    directory = output_root + "/" + directory_name_match.group(1)
     
     try:
         faculty_page = urllib2.urlopen(faculty_home_url)
@@ -40,6 +41,7 @@ def  process_faculty_home_page(faculty_home_url):
     # Create output directory
     if not os.path.exists(directory):
         os.makedirs(directory)
+    home_output = open(directory+'/index.pcf', 'w+')
     
     faculty_page_raw = faculty_page.read()
     publications_link = re.findall(publications_pattern, faculty_page_raw)
@@ -108,23 +110,30 @@ def  process_faculty_home_page(faculty_home_url):
         publications_output.write(publications_contents)
         publications_output.close()
         
-    #  Get  course  info
+    #  Get course info
     if has_all_courses_page:
-        print  "Found courses at " + courses_url
+        print "Found courses at " + courses_url
         try:
             all_courses_page = urllib2.urlopen(courses_url)
             all_courses_raw = all_courses_page.read()
-            all_course_links = re.findall(
-                                          course_pattern, 
+            courses_page_contents = get_page_contents(courses_url, 
+                                        courses_page_contents_pattern)
+            if not os.path.exists(directory+'/courses/'):
+                os.makedirs(directory+'/courses/')
+            courses_output = open(directory+'/courses/index.pcf', 'w+')
+            courses_output.write(courses_page_contents)
+            courses_output.close()
+            all_course_names = re.findall(course_name_pattern, 
                                           all_courses_raw)
-            process_faculty_courses_page(
-                                         faculty_home_url, 
-                                         all_course_links)
-        except:
-            print "Could not open page"
+            process_faculty_courses_page(faculty_home_url, 
+                                         all_course_names,
+                                         directory)
+        except Exception as e:
+            print "Unexpected error: " + str(e)
         
 # Open a URL, read the contents, return part that matches pattern
 def get_page_contents(page_url, content_pattern):
+    print "Getting contents from " + page_url
     try:
         page = urllib2.urlopen(page_url)
         raw = page.read()
@@ -135,22 +144,31 @@ def get_page_contents(page_url, content_pattern):
         else:
             print "no match found in " + page_url
     except:
-        print "Could not open page " + page_url
+        print "147 Could not open page " + page_url
 
 # Process all of the courses for one faculty
-def process_faculty_courses_page(base_url, link_list):
-    for course_link in link_list:
-        course_url = base_url + "/courses/" + course_link + "/index.html"
-        print "Opening course: " + course_link
-        if (not(course_link.startswith('index.html')) 
-                and (len(course_link)  >  0)):
-            print  "Found course: " + course_url
+def process_faculty_courses_page(base_url, link_list, output_directory):
+    for course_name in link_list:
+        course_url = base_url + "/courses/" + course_name + "/index.html"
+        print "Checking: " + course_name
+        if (not(course_name.startswith('index.html')) 
+                and (len(course_name)  >  0)):
+            print "Reading course: " + course_url
             course_contents = get_page_contents(
                                                 course_url, 
                                                 course_content_pattern)
-            # print course_contents
+            print course_contents
+            print "Creating directory"
+            course_directory = output_directory + '/courses/' + course_name
+            print "New course directory: " + course_directory
+            if not os.path.exists(output_directory + '/courses/' + course_name):
+                os.makedirs(output_directory + '/courses/' + course_name)
+            course_output = open(output_directory + '/courses/' + course_name +'/index.pcf', 'w+')
+            course_output.write(course_contents)
+            course_output.close()
+            
         else:
-            print "Skipping link: " + course_link
+            print "Skipping link: " + course_name
             
 # Main loop
 if len(sys.argv) > 1:
