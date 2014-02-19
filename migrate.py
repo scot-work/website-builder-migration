@@ -68,19 +68,21 @@ def  process_faculty_home_page(faculty_home_url):
     if (len(courses_links) > 0):
         has_all_courses_page = True
         courses_url = faculty_home_url + '/courses/'
-        sidenav += '<li><<a href="/'+directory+'/courses/">Courses</a></li>\n'
+        sidenav += '<li><a href="/'+directory+'/courses/">Courses</a></li>\n'
                 
     if (len(expert_link) > 0):
         has_expert_page = True
         expert_url = faculty_home_url + '/expert/'
-        sidenav += '<li><<a href="/'+directory+'/expert/">Expert</a></li>\n'
+        sidenav += '<li><a href="/'+directory+'/expert/">Expert</a></li>\n'
                 
     if (len(research_link) > 0):
         has_research_page = True
         research_url = faculty_home_url + '/research/'
         sidenav += '<li><a href="/'+directory+'/research/">Research</a></li>\n'
     
-    print sidenav
+    sidenav_output = open(directory + '/sidenav.inc', 'w+')
+    sidenav_output.write(sidenav)
+    sidenav_output.close()
     
     # Get faculty info
     faculty_page_match = page_contents_pattern.search(faculty_page_raw)
@@ -91,7 +93,7 @@ def  process_faculty_home_page(faculty_home_url):
     
     # Get expert info
     if has_expert_page:
-        print "Found expert at " + expert_url
+        # print "Found expert at " + expert_url
         expert_contents = get_page_contents(expert_url, 
                                             page_contents_pattern)
         if not os.path.exists(directory+'/expert/'):
@@ -102,7 +104,7 @@ def  process_faculty_home_page(faculty_home_url):
         
     # Get research info
     if has_research_page:
-        print "Found research at " + research_url
+        # print "Found research at " + research_url
         research_contents = get_page_contents(research_url, 
                                               page_contents_pattern)
         if not os.path.exists(directory+'/research/'):
@@ -113,7 +115,7 @@ def  process_faculty_home_page(faculty_home_url):
     
     # Get publications info    
     if has_publications_page:
-        print "Found publications at " + publications_url
+        # print "Found publications at " + publications_url
         publications_contents = get_page_contents(publications_url, 
                                                   page_contents_pattern)
         if not os.path.exists(directory+'/publications/'):
@@ -124,7 +126,7 @@ def  process_faculty_home_page(faculty_home_url):
         
     #  Get course info
     if has_all_courses_page:
-        print "Found courses at " + courses_url
+        # print "Found courses at " + courses_url
         try:
             all_courses_page = urllib2.urlopen(courses_url)
             all_courses_raw = all_courses_page.read()
@@ -145,7 +147,7 @@ def  process_faculty_home_page(faculty_home_url):
         
 # Open a URL, read the contents, return part that matches pattern
 def get_page_contents(page_url, content_pattern):
-    print "Getting contents from " + page_url
+    # print "Getting contents from " + page_url
     try:
         page = urllib2.urlopen(page_url)
         raw = page.read()
@@ -160,19 +162,23 @@ def get_page_contents(page_url, content_pattern):
 
 # Process all of the courses for one faculty
 def process_faculty_courses_page(base_url, link_list, output_directory):
+    sidenav = ""
     for course_name in link_list:
         course_url = base_url + "/courses/" + course_name + "/index.html"
-        print "Checking: " + course_name
+        # print "Checking: " + course_name
         if (not(course_name.startswith('index.html')) 
                 and (len(course_name)  >  0)):
-            print "Reading course: " + course_url
+            # print "Reading course: " + course_url
+            sidenav_link = '/' + output_directory + '/courses/' + course_name + '/'
+            sidenav += '<li><a href="'+sidenav_link+'">'+course_name+'</a></li>\n'
+            
             course_contents = get_page_contents(
                                                 course_url, 
                                                 course_content_pattern)
-            print course_contents
-            print "Creating directory"
+            # print course_contents
+            # print "Creating directory"
             course_directory = output_directory + '/courses/' + course_name
-            print "New course directory: " + course_directory
+            # print "New course directory: " + course_directory
             if not os.path.exists(output_directory + '/courses/' + course_name):
                 os.makedirs(output_directory + '/courses/' + course_name)
             course_output = open(output_directory + '/courses/' + course_name +'/index.pcf', 'w+')
@@ -180,8 +186,12 @@ def process_faculty_courses_page(base_url, link_list, output_directory):
             course_output.close()
             
         else:
-            print "Skipping link: " + course_name
+            print "Skipping course link: " + course_name
             
+    sidenav_output = open(output_directory + '/courses/sidenav.inc', 'w+')
+    sidenav_output.write(sidenav)
+    sidenav_output.close()
+    
 # Main loop
 if len(sys.argv) > 1:
     # print sys.argv[1]
