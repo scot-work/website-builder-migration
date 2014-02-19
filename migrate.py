@@ -26,11 +26,15 @@ courses_page_contents_pattern = re.compile(
 
 # Functions
 
+# Periods are not allowed in OU, so replace in directory names
+def fix_dir_name(dir_name):
+	return dir_name.replace('.', '-')
+
 # Process one faculty site
 def  process_faculty_home_page(faculty_home_url):
     print "processing "+faculty_home_url
     directory_name_match = faculty_directory_pattern.match(faculty_home_url)
-    directory = output_root + "/" + directory_name_match.group(1)
+    directory = output_root + "/" + fix_dir_name(directory_name_match.group(1))
     
     try:
         faculty_page = urllib2.urlopen(faculty_home_url)
@@ -53,23 +57,31 @@ def  process_faculty_home_page(faculty_home_url):
     has_all_courses_page = False
     has_expert_page = False
     has_research_page = False
+    
+    sidenav = ""
         
     if (len(publications_link) > 0):
         has_publications_page = True
         publications_url = faculty_home_url + '/publications/'
+        sidenav += '<li><a href="/'+directory+'/publications/">Publications</a></li>\n'
                 
     if (len(courses_links) > 0):
         has_all_courses_page = True
         courses_url = faculty_home_url + '/courses/'
+        sidenav += '<li><<a href="/'+directory+'/courses/">Courses</a></li>\n'
                 
     if (len(expert_link) > 0):
         has_expert_page = True
         expert_url = faculty_home_url + '/expert/'
+        sidenav += '<li><<a href="/'+directory+'/expert/">Expert</a></li>\n'
                 
     if (len(research_link) > 0):
         has_research_page = True
         research_url = faculty_home_url + '/research/'
-                
+        sidenav += '<li><a href="/'+directory+'/research/">Research</a></li>\n'
+    
+    print sidenav
+    
     # Get faculty info
     faculty_page_match = page_contents_pattern.search(faculty_page_raw)
     if faculty_page_match:
