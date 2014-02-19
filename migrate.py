@@ -11,10 +11,10 @@ output_root = "people"
 faculty_list_url = "http://www.sjsu.edu/people/a-z.jsp"
 courses_pattern = re.compile('\/people\/.*\/courses\/')
 faculty_directory_pattern = re.compile('http://www.sjsu.edu/people/(.*)/?')
-course_name_pattern = re.compile('\/courses\/(.*)"')
-publications_pattern = re.compile('\/publications\/')
-research_pattern = re.compile('\/research\/')
-expert_pattern = re.compile('\/expert\/')
+course_name_pattern = re.compile('\/people\/.*?\/courses\/(.*)"')
+publications_pattern = re.compile('\/people\/.*?\/publications\/')
+research_pattern = re.compile('\/people\/.*?\/research\/')
+expert_pattern = re.compile('\/people\/.*?\/expert\/')
 course_content_pattern = re.compile(
     '<div id="col_1_of_1_int_maintemplate">(.*)<div id="disclaimer_people">',re.S)
 faculty_link_pattern = re.compile(
@@ -29,6 +29,16 @@ courses_page_contents_pattern = re.compile(
 # Periods are not allowed in OU, so replace in directory names
 def fix_dir_name(dir_name):
 	return dir_name.replace('.', '-')
+
+def output_page(directory, page_url, page_name):
+    print "Found page at " + page_url
+    page_contents = get_page_contents(page_url, 
+                                           page_contents_pattern)
+    if not os.path.exists(directory+'/'+page_name+'/'):
+        os.makedirs(directory+'/'+page_name+'/')
+    page_output = open(directory+'/'+page_name+'/index.pcf', 'w+')
+    page_output.write(page_contents)
+    page_output.close()
 
 # Process one faculty site
 def  process_faculty_home_page(faculty_home_url):
@@ -76,7 +86,7 @@ def  process_faculty_home_page(faculty_home_url):
         sidenav += '<li><a href="/'+directory+'/expert/">Expert</a></li>\n'
                 
     if (len(research_link) > 0):
-        has_research_page = True
+        has_all_courses_page = True
         research_url = faculty_home_url + '/research/'
         sidenav += '<li><a href="/'+directory+'/research/">Research</a></li>\n'
     
@@ -90,9 +100,18 @@ def  process_faculty_home_page(faculty_home_url):
         faculty_page_contents = faculty_page_match.group(1)
         home_output.write('<div>'+faculty_page_contents)
         home_output.close()
-    
+
     # Get expert info
     if has_expert_page:
+        output_page(directory, expert_url, 'expert')
+        
+    if has_research_page:
+        output_page(directory, research_url, 'research')
+        
+    if has_publications_page:
+        output_page(directory, publications_url, 'publications')
+        
+        '''
         # print "Found expert at " + expert_url
         expert_contents = get_page_contents(expert_url, 
                                             page_contents_pattern)
@@ -101,6 +120,7 @@ def  process_faculty_home_page(faculty_home_url):
         expert_output = open(directory+'/expert/index.pcf', 'w+')
         expert_output.write(expert_contents)
         expert_output.close()
+       
         
     # Get research info
     if has_research_page:
@@ -112,7 +132,7 @@ def  process_faculty_home_page(faculty_home_url):
         research_output = open(directory+'/research/index.pcf', 'w+')
         research_output.write(research_contents)
         research_output.close()
-    
+
     # Get publications info    
     if has_publications_page:
         # print "Found publications at " + publications_url
@@ -123,7 +143,7 @@ def  process_faculty_home_page(faculty_home_url):
         publications_output = open(directory+'/publications/index.pcf', 'w+')
         publications_output.write(publications_contents)
         publications_output.close()
-        
+       '''
     #  Get course info
     if has_all_courses_page:
         # print "Found courses at " + courses_url
@@ -185,8 +205,8 @@ def process_faculty_courses_page(base_url, link_list, output_directory):
             course_output.write(course_contents)
             course_output.close()
             
-        else:
-            print "Skipping course link: " + course_name
+        #else:
+            # print "Skipping course link: " + course_name
             
     sidenav_output = open(output_directory + '/courses/sidenav.inc', 'w+')
     sidenav_output.write(sidenav)
