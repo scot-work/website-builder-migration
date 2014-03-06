@@ -5,7 +5,7 @@ Output sidenav.inc
 Page Title
 Validate XML http://lxml.de/validation.html
 courses page content pattern
-
+Need to fix unescaped & in URLs, unclosed <p> tags
 '''
 #imports
 import urllib2
@@ -36,6 +36,8 @@ page_contents_pattern = re.compile(
 publications_contents_pattern = re.compile(
     '<div id="pagetitle">.*?</div>(.*)<div id="disclaimer_people">', re.S)
 
+unescaped_ampersand_pattern = re.compile('&(?!amp;)')
+
 # courses_page_contents_pattern = re.compile('<h1 class="hidden">Main Content</h1>(.*)<h1 class="hidden">', re.S)
 courses_page_contents_pattern = re.compile('<div id="pagetitle">.*?</div>(.*)</div>.*?</div>.*?<div id="disclaimer_people">', re.S)
 
@@ -61,19 +63,26 @@ standard_navigation_links = ["Courses",
 def fix_name(faculty_name):
     return faculty_name.replace('.', '-').replace("'", "")
     
+def cleanup_code(code_in):
+    # Replace unknown entities and unclosed tags
+    code_out = code_in.replace('&nbsp;', ' ').replace('<br>', '<br />')
+    code_out = unescaped_ampersand_pattern.sub('&amp;', code_out)
+    return code_out
+    
 # Determine if this is valid XML
 def validate(content):
     valid = True
     parser = etree.XMLParser(dtd_validation=True)
     try:
-        # Replace unknown entities
-        root = etree.fromstring(content.getvalue().replace('&nbsp;', ' ').replace('<br>', '<br />').replace('& ', '&amp; '))
+        
+        root = etree.fromstring(content.getvalue())
     except Exception as e:
         error_message = str(e.args)
         valid = False
     if valid:
         return "valid"
     else:
+        print error_message
         return error_message
 
 # Read a page and output its content
@@ -91,6 +100,8 @@ def output_page(faculty_name, page_url, page_name):
     else:
         page_contents = get_page_contents(page_url, page_contents_pattern)
     
+    page_contents = cleanup_code(page_contents)
+    
     # Get directory name from URL and create directory
     directory_name = last_element_pattern.match(page_url).group(1)
     if not os.path.exists(faculty_root + '/' + directory_name + '/'):
@@ -104,10 +115,12 @@ def output_page(faculty_name, page_url, page_name):
         page_footer = myfile.read()
     myfile.close()
     
+    # assemble the file
     output_content = StringIO.StringIO()
     output_content.write(page_header)
     output_content.write(page_contents)
     output_content.write(page_footer)
+
     # Make sure content is valid
     validation_results = validate(output_content)
     if (validation_results == "valid"):
@@ -116,6 +129,7 @@ def output_page(faculty_name, page_url, page_name):
         page_output.write(output_content.getvalue())
         page_output.close()
     else:
+        # File is not valid XML
         error_directory = errors_root + faculty_name + '/' + directory_name + '/'
         if not os.path.exists(error_directory):
             os.makedirs(error_directory)
@@ -123,7 +137,6 @@ def output_page(faculty_name, page_url, page_name):
         error_output.write(validation_results + output_content.getvalue())
         error_output.close()
     
-    # Output page contents
     output_content.close()
 
 
@@ -151,17 +164,19 @@ def  process_faculty_home_page(faculty_home_url):
     
     # Process Links
     links = re.findall(link_pattern, primary_nav_match.group(1))
+    sidenav_content = ""
     for link in links:
         link_url = link[0]
         link_text = link[1]
         if link_text in standard_navigation_links:
-            output_page(fix_name(faculty_name), sjsu_home_url+link_url, link_text)
+            output_page(fix_name(faculty_name), sjsu_home_url + link_url, link_text)
+            sidenav_content += '<li><a href="' + fix_name(link_url) + '">' + link_text + '</a></li>'
         elif not (link_text == "Home"):
             print "Link not in standard list: " + link_url, link_text
 
-    sidenav = ""
+    
     sidenav_output = open(output_directory + '/sidenav.inc', 'w+')
-    sidenav_output.write(sidenav)
+    sidenav_output.write(sidenav_content)
     sidenav_output.close()
     
     # Read Faculty Home Page
