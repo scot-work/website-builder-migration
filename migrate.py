@@ -1,11 +1,10 @@
 ''' 
 TODO:
-Output home page
-Output sidenav.inc
 Page Title
 Validate XML http://lxml.de/validation.html
 courses page content pattern
-Need to fix unescaped & in URLs, unclosed <p> tags
+Need to fix unclosed <p> tags
+re-process after cleanup
 '''
 #imports
 import urllib2
