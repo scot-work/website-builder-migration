@@ -4,7 +4,8 @@ Page Title
 Validate XML http://lxml.de/validation.html
 courses page content pattern
 Need to fix unclosed <p> tags
-re-process after cleanup
+sidenav.inc in every directory
+
 '''
 #imports
 import urllib2
@@ -34,6 +35,8 @@ page_contents_pattern = re.compile(
 
 publications_contents_pattern = re.compile(
     '<div id="pagetitle">.*?</div>(.*)<div id="disclaimer_people">', re.S)
+
+full_name_pattern = re.compile('<div id="pagetitle">.*?<h2>(.*)</h2>', re.S)
 
 unescaped_ampersand_pattern = re.compile('&(?!amp;)')
 
@@ -100,6 +103,10 @@ def output_page(faculty_name, page_url, page_name):
         page_contents = get_page_contents(page_url, page_contents_pattern)
     
     page_contents = cleanup_code(page_contents)
+
+    # Get full name
+    full_name = get_page_contents(page_url, full_name_pattern)
+    # print "Faculty Name is " + full_name
     
     # Get directory name from URL and create directory
     directory_name = last_element_pattern.match(page_url).group(1)
@@ -109,6 +116,7 @@ def output_page(faculty_name, page_url, page_name):
     # Read beginning and end of pcf file
     with open ("header.txt", "r") as myfile:
         page_header = myfile.read()
+        page_header = page_header.replace('{{Page Title}}', full_name)
     myfile.close()
     with open ("footer.txt", "r") as myfile:
         page_footer = myfile.read()
@@ -127,6 +135,8 @@ def output_page(faculty_name, page_url, page_name):
         page_output = open(output_root + faculty_name + '/' + directory_name + '/index.pcf', 'w+')
         page_output.write(output_content.getvalue())
         page_output.close()
+        sidenav_output = open(output_root + faculty_name + '/' + directory_name + '/sidenav.inc', 'w+')
+        sidenav_output.close()
     else:
         # File is not valid XML
         error_directory = errors_root + faculty_name + '/' + directory_name + '/'
@@ -149,7 +159,7 @@ def  process_faculty_home_page(faculty_home_url):
     try:
         faculty_page = urllib2.urlopen(faculty_home_url)
     except HTTPError, e:
-        print "HTTP error: " + e.code + " opening " + faculty_home_url
+        print "HTTP error opening " + faculty_home_url
         sys.exit()
     
     # Create output directory
@@ -262,15 +272,22 @@ def process_faculty_courses_page(base_url, link_list, output_dir):
     sidenav_output.close()
     
 # Main loop
-if len(sys.argv) > 1:
-    # print sys.argv[1]
-    process_faculty_home_page(sys.argv[1])
+# Read command line
+if not(len(sys.argv) > 1):
+    print "Usage: "
+    print "python migrate.py name : Process one faculty"
+    print "python migrate.py all : Process all faculty"
 else:
-    # Get list of all published faculty sites
-    data = urllib2.urlopen(faculty_list_url)
-    all_faculty_links = re.findall(faculty_link_pattern, data.read())
+    cla = sys.argv[1]
+    if not cla == "all":
+        faculty_url = "http://www.sjsu.edu/people/" + cla
+        process_faculty_home_page(faculty_url)
+    else:
+        # Get list of all published faculty sites
+        data = urllib2.urlopen(faculty_list_url)
+        all_faculty_links = re.findall(faculty_link_pattern, data.read())
 
-    #  Process  each  faculty  site
-    for faculty_home_link in all_faculty_links:
-        current_url = sjsu_home_url + faculty_home_link
-        process_faculty_home_page(current_url)
+        #  Process  each  faculty  site
+        for faculty_home_link in all_faculty_links:
+            current_url = sjsu_home_url + faculty_home_link
+            process_faculty_home_page(current_url)
