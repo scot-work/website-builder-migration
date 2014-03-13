@@ -22,7 +22,7 @@ sjsu_home_url = "http://www.sjsu.edu"
 output_root = "people/"
 errors_root = "errors/"
 faculty_list_url = "http://www.sjsu.edu/people/a-z.jsp"
-courses_pattern = re.compile('\/people\/.*\/courses\/')
+# courses_pattern = re.compile('\/people\/.*\/courses\/')
 faculty_directory_pattern = re.compile('http://www.sjsu.edu/people/(.*)/?')
 
 course_content_pattern = re.compile(
@@ -40,8 +40,8 @@ full_name_pattern = re.compile('<div id="pagetitle">.*?<h2>(.*)</h2>', re.S)
 
 unescaped_ampersand_pattern = re.compile('&(?!amp;)')
 
-# courses_page_contents_pattern = re.compile('<h1 class="hidden">Main Content</h1>(.*)<h1 class="hidden">', re.S)
-courses_page_contents_pattern = re.compile('<div id="pagetitle">.*?</div>(.*)</div>.*?</div>.*?<div id="disclaimer_people">', re.S)
+courses_page_contents_pattern = re.compile('<h3>Courses</h3>.*?<ul>(.*)</ul>', re.S)
+# courses_page_contents_pattern = re.compile('<div id="pagetitle">.*?</div>(.*)</div>.*?</div>.*?<div id="disclaimer_people">', re.S)
 
 primary_navigation_pattern = re.compile(
     '<div class="primary_top">(.*)<!-- end primary navigation -->', re.S)
@@ -98,7 +98,8 @@ def output_page(faculty_name, page_url, page_name):
         # print "Publications or Research page"
         page_contents = get_page_contents(page_url, publications_contents_pattern)
     elif (site_section == '/courses/'):
-        page_contents = get_page_contents(page_url, courses_page_contents_pattern)
+        process_faculty_courses_page(page_url)
+        return
     else:
         page_contents = get_page_contents(page_url, page_contents_pattern)
     
@@ -212,12 +213,12 @@ def  process_faculty_home_page(faculty_home_url):
     else:
         print "No regex match found on home page for " + faculty_home_url
 
-#  Get course info
-'''    if has_all_courses_page:
-        # print "Found courses at " + courses_url
+'''def process_courses(courses_url)
+    if has_all_courses_page:
+        print "Found courses at " + courses_url
         try:
-            all_courses_page = urllib2.urlopen(courses_url)
-            all_courses_raw = all_courses_page.read()
+            courses_page = urllib2.urlopen(courses_url)
+            courses_raw = courses_page.read()
             courses_page_contents = get_page_contents(courses_url, 
                                         courses_page_contents_pattern)
             if not os.path.exists(directory+'/courses/'):
@@ -225,14 +226,14 @@ def  process_faculty_home_page(faculty_home_url):
             courses_output = open(directory+'/courses/index.pcf', 'w+')
             courses_output.write(courses_page_contents)
             courses_output.close()
-            all_course_names = re.findall(course_name_pattern, 
-                                          all_courses_raw)
+            all_course_names = re.findall(course_name_pattern, courses_raw)
             process_faculty_courses_page(faculty_home_url, 
                                          all_course_names,
                                          directory)
         except Exception as e:
             print "Unexpected error: " + str(e)
-'''        
+'''
+       
 # Open a URL, read the contents, return part that matches pattern
 def get_page_contents(page_url, content_pattern):
     # print "Getting contents from " + page_url
@@ -250,7 +251,8 @@ def get_page_contents(page_url, content_pattern):
         print "Could not open page " + page_url
 
 # Process all of the courses for one faculty
-def process_faculty_courses_page(base_url, link_list, output_dir):
+def process_faculty_courses_page(base_url):
+
     sidenav = ""
     for course_name in link_list:
         course_url = base_url + "/courses/" + course_name + "/index.html"
