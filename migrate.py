@@ -1,6 +1,6 @@
 ''' 
 TODO:
-Page Title
+
 Validate XML http://lxml.de/validation.html
 courses page content pattern
 Need to fix unclosed <p> tags
@@ -90,12 +90,12 @@ def validate(content):
 # Read a page and output its content
 def output_page(faculty_name, page_url, page_name):
     faculty_root = output_root + faculty_name
-    print "Writing directory: " + faculty_root + " url: " + page_url + " name " + page_name
+    # print "Writing directory: " + faculty_root + " url: " + page_url + " name " + page_name
     site_section = last_element_pattern.match(page_url).group(1)
     if (site_section == '/publications/' 
         or site_section == '/research/'
         or site_section == '/expert/'):
-        print "Publications or Research page"
+        # print "Publications or Research page"
         page_contents = get_page_contents(page_url, publications_contents_pattern)
     elif (site_section == '/courses/'):
         page_contents = get_page_contents(page_url, courses_page_contents_pattern)
@@ -151,7 +151,7 @@ def output_page(faculty_name, page_url, page_name):
 
 # Process one faculty site
 def  process_faculty_home_page(faculty_home_url):
-    print "processing " + faculty_home_url
+    # print "processing " + faculty_home_url
     faculty_name = faculty_name_pattern.match(faculty_home_url).group(1)
     directory_name_match = faculty_directory_pattern.match(faculty_home_url)
     output_directory = output_root + fix_name(directory_name_match.group(1))
@@ -181,8 +181,9 @@ def  process_faculty_home_page(faculty_home_url):
             output_page(fix_name(faculty_name), sjsu_home_url + link_url, link_text)
             sidenav_content += '<li><a href="' + fix_name(link_url) + '">' + link_text + '</a></li>'
         elif not (link_text == "Home"):
-            print "Link not in standard list: " + link_url, link_text
-
+            print "Processing custom page: " + link_url
+            output_page(fix_name(faculty_name), sjsu_home_url + link_url, link_text)
+            sidenav_content += '<li><a href="' + fix_name(link_url) + '">' + link_text + '</a></li>'
     
     sidenav_output = open(output_directory + '/sidenav.inc', 'w+')
     sidenav_output.write(sidenav_content)
@@ -190,11 +191,16 @@ def  process_faculty_home_page(faculty_home_url):
     
     # Read Faculty Home Page
     # faculty_page_match = page_contents_pattern.search(faculty_page_raw)
+ 
+    # Get full name
+    full_name = get_page_contents(faculty_home_url, full_name_pattern)
+
     faculty_page_match = publications_contents_pattern.search(faculty_page_raw)
     if faculty_page_match:
         faculty_page_contents = faculty_page_match.group(1)
         with open ("header.txt", "r") as myfile:
             page_header = myfile.read()
+            page_header = page_header.replace('{{Page Title}}', full_name)
         home_output.write(page_header)
         myfile.close()
         home_output.write(faculty_page_contents)
@@ -204,7 +210,7 @@ def  process_faculty_home_page(faculty_home_url):
         myfile.close()
         home_output.close()
     else:
-        print "No match found on home page"
+        print "No regex match found on home page for " + faculty_home_url
 
 #  Get course info
 '''    if has_all_courses_page:
@@ -229,7 +235,7 @@ def  process_faculty_home_page(faculty_home_url):
 '''        
 # Open a URL, read the contents, return part that matches pattern
 def get_page_contents(page_url, content_pattern):
-    print "Getting contents from " + page_url
+    # print "Getting contents from " + page_url
     try:
         page = urllib2.urlopen(page_url)
         raw = page.read()
