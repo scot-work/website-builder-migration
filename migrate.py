@@ -36,10 +36,13 @@ faculty_link_pattern = re.compile('<li><a href="(/people/.*)">.*</a></li>')
 page_contents_pattern = re.compile(
     '<div id="pagetitle">.*?</div>(.*)</div>.*?</div>.*?<div id="disclaimer_people">', re.S)
 
-publications_contents_pattern = re.compile(
+page_contents_pattern_b = re.compile(
     '<div id="pagetitle">.*?</div>(.*)<div id="disclaimer_people">', re.S)
+    
+page_contents_pattern_c = re.compile(
+    '<!-- start column one -->(.*)<!-- end column one -->', re.S)
 
-full_name_pattern = re.compile('<div id="pagetitle">.*?<h2>(.*)</h2>', re.S)
+page_title_pattern = re.compile('<div id="pagetitle">.*?<h2>(.*)</h2>', re.S)
 
 unescaped_ampersand_pattern = re.compile('&(?!amp;)')
 
@@ -70,16 +73,18 @@ def fix_name(faculty_name):
     
 # Replace unknown entities and unclosed tags
 def cleanup_code(code_in):
-    code_out = code_in.replace('&nbsp;', ' ').replace('<br>', '<br />')
-    code_out = unescaped_ampersand_pattern.sub('&amp;', code_out)
-    return code_out
+    if code_in:
+        code_out = code_in.replace('&nbsp;', ' ').replace('<br>', '<br />')
+        code_out = unescaped_ampersand_pattern.sub('&amp;', code_out)
+        return code_out
+    else:
+        return ""
     
 # Determine if this is valid XML
 def validate(content):
     valid = True
     parser = etree.XMLParser(dtd_validation=True)
     try:
-        
         root = etree.fromstring(content.getvalue())
     except Exception as e:
         error_message = str(e.args)
@@ -87,7 +92,6 @@ def validate(content):
     if valid:
         return "valid"
     else:
-        print error_message
         return error_message
 
 # Read a page and output its content
@@ -98,56 +102,63 @@ def output_page(faculty_name, page_url, page_name):
         or site_section == '/research/'
         or site_section == '/expert/'):
         # print "Publications or Research page"
-        page_contents = get_page_contents(page_url, publications_contents_pattern)
+        page_contents = get_page_contents(page_url)
+        if (page_contents == ""):
+            print "No match found in " + page_url
+            
     elif (site_section == '/courses/'):
         process_faculty_courses_page(page_url)
         return
     else:
-        page_contents = get_page_contents(page_url, page_contents_pattern)
+        page_contents = get_page_contents(page_url)
     
-    page_contents = cleanup_code(page_contents)
-
-    # Get full name
-    full_name = get_page_contents(page_url, full_name_pattern)
-    
-    # Get directory name from URL and create directory
-    directory_name = last_element_pattern.match(page_url).group(1)
-    if not os.path.exists(faculty_root + '/' + directory_name + '/'):
-        os.makedirs(faculty_root + '/' + directory_name + '/')
-    
-    # Read beginning and end of pcf file
-    with open ("header.txt", "r") as myfile:
-        page_header = myfile.read()
-        page_header = page_header.replace('{{Page Title}}', full_name)
-    myfile.close()
-    with open ("footer.txt", "r") as myfile:
-        page_footer = myfile.read()
-    myfile.close()
-    
-    # assemble the file
-    output_content = StringIO.StringIO()
-    output_content.write(page_header)
-    output_content.write(page_contents)
-    output_content.write(page_footer)
-
-    # Make sure content is valid
-    validation_results = validate(output_content)
-    if (validation_results == "valid"):
-        # Open output file
-        page_output = open(output_root + faculty_name + '/' + directory_name + '/index.pcf', 'w+')
-        page_output.write(output_content.getvalue())
-        page_output.close()
-        sidenav_output = open(output_root + faculty_name + '/' + directory_name + '/sidenav.inc', 'w+')
-        sidenav_output.close()
+    if (not page_contents or page_contents == ""):
+        print "empty page " + page_url
     else:
-        # File is not valid XML
-        error_directory = errors_root + faculty_name + '/' + directory_name + '/'
-        if not os.path.exists(error_directory):
-            os.makedirs(error_directory)
-        error_output = open(error_directory + 'errors.xml', 'w+')
-        error_output.write(validation_results + output_content.getvalue())
-        error_output.close()
-    output_content.close()
+        page_contents = cleanup_code(page_contents)
+        # Get full name
+        full_name = get_page_title(page_url)
+        if not full_name:
+            print "Page title not found " + page_url
+        
+        # Get directory name from URL and create directory
+        directory_name = last_element_pattern.match(page_url).group(1)
+        if not os.path.exists(faculty_root + '/' + directory_name + '/'):
+            os.makedirs(faculty_root + '/' + directory_name + '/')
+        
+        # Read beginning and end of pcf file
+        with open ("header.txt", "r") as myfile:
+            page_header = myfile.read()
+            page_header = page_header.replace('{{Page Title}}', full_name)
+        myfile.close()
+        with open ("footer.txt", "r") as myfile:
+            page_footer = myfile.read()
+        myfile.close()
+        
+        # assemble the file
+        output_content = StringIO.StringIO()
+        output_content.write(page_header)
+        output_content.write(page_contents)
+        output_content.write(page_footer)
+
+        # Make sure content is valid
+        validation_results = validate(output_content)
+        if (validation_results == "valid"):
+            # Open output file
+            page_output = open(output_root + faculty_name + '/' + directory_name + '/index.pcf', 'w+')
+            page_output.write(output_content.getvalue())
+            page_output.close()
+            sidenav_output = open(output_root + faculty_name + '/' + directory_name + '/sidenav.inc', 'w+')
+            sidenav_output.close()
+        else:
+            # File is not valid XML
+            error_directory = errors_root + faculty_name + '/' + directory_name + '/'
+            if not os.path.exists(error_directory):
+                os.makedirs(error_directory)
+            error_output = open(error_directory + 'errors.xml', 'w+')
+            error_output.write(validation_results + output_content.getvalue())
+            error_output.close()
+        output_content.close()
 
 
 # Process one faculty site
@@ -177,11 +188,7 @@ def  process_faculty_home_page(faculty_home_url):
     for link in links:
         link_url = link[0]
         link_text = link[1]
-        if link_text in standard_navigation_links:
-            output_page(fix_name(faculty_name), sjsu_home_url + link_url, link_text)
-            sidenav_content += '<li><a href="' + fix_name(link_url) + '">' + link_text + '</a></li>'
-        elif not (link_text == "Home"):
-            print "Processing custom page: " + link_url
+        if not link_text == "Home":
             output_page(fix_name(faculty_name), sjsu_home_url + link_url, link_text)
             sidenav_content += '<li><a href="' + fix_name(link_url) + '">' + link_text + '</a></li>'
     
@@ -193,9 +200,9 @@ def  process_faculty_home_page(faculty_home_url):
     # faculty_page_match = page_contents_pattern.search(faculty_page_raw)
  
     # Get full name
-    full_name = get_page_contents(faculty_home_url, full_name_pattern)
+    full_name = get_page_title(faculty_home_url)
 
-    faculty_page_match = publications_contents_pattern.search(faculty_page_raw)
+    faculty_page_match = page_contents_pattern_b.search(faculty_page_raw)
     if faculty_page_match:
         faculty_page_contents = faculty_page_match.group(1)
         with open ("header.txt", "r") as myfile:
@@ -212,21 +219,83 @@ def  process_faculty_home_page(faculty_home_url):
     else:
         print "No regex match found on home page for " + faculty_home_url
        
-# Open a URL, read the contents, return part that matches pattern
-def get_page_contents(page_url, content_pattern):
-    # print "Getting contents from " + page_url
+# Open a course, read the contents, return part that matches pattern
+def get_course_page_contents(page_url):
     try:
         page = urllib2.urlopen(page_url)
         raw = page.read()
-        match = content_pattern.search(raw)
+        match = course_content_pattern.search(raw)
         if match:
             contents = match.group(1)
             return contents
         else:
-            print "no match found in " + page_url
+            print "No course content found in " + page_url
+            print raw
             return ""
     except:
         print "Could not open page " + page_url
+      
+          # get contents of courses page
+def get_courses_page_contents(page_url):
+    print "opening " + page_url
+    try:
+        page = urllib2.urlopen(page_url)
+        raw = page.read()
+        match = courses_page_contents_pattern.search(raw)
+        if match:
+            contents = match.group(1)
+            return contents
+        else:
+            print "No course content found in " + page_url
+            print raw
+            return ""
+    except Exception as e:
+        error_message = str(e.args)
+        print error_message + " at " + page_url
+    
+def get_page_title(page_url):
+    try:
+        page = urllib2.urlopen(page_url)
+        raw = page.read()
+        match = page_title_pattern.search(raw)
+        if match:
+            contents = match.group(1)
+            return contents
+            
+    except Exception as e:
+        error_message = str(e.args)
+        print error_message + " at " + page_url       
+                
+# Open a URL, read the contents, return part that matches pattern
+def get_page_contents(page_url):
+    try:
+        page = urllib2.urlopen(page_url)
+        raw = page.read()
+        match = courses_page_contents_pattern.search(raw)
+        if match:
+            contents = match.group(1)
+            return contents
+        else:
+            match = page_contents_pattern_b.search(raw)
+            if match:
+                contents = match.group(1)
+                return contents
+            else:
+                match = page_contents_pattern_c.search(raw)
+                if match:
+                    contents = match.group(1)
+                    return contents
+                else:
+                    match = course_contents_pattern.search(raw)
+                    if match:
+                        contents = match.group(1)
+                        return contents
+                    else:
+                        print "No match found in " + page_url
+                        return ""
+    except Exception as e:
+        error_message = str(e.args)
+        print error_message + " at " + page_url
 
 # Process all of the courses for one faculty
 def process_faculty_courses_page(courses_url):
@@ -234,12 +303,12 @@ def process_faculty_courses_page(courses_url):
     faculty_name = name_pattern.match(courses_url).group(1)
     print "Getting courses for " + faculty_name
     # Get list of courses
-    course_page_contents = get_page_contents(courses_url, 
-                                            courses_page_contents_pattern)
-    
+    print "getting content from " + courses_url
+    courses_page_contents = get_courses_page_contents(courses_url)
+                                            
     # print course_page_contents
     link_list = re.findall(course_name_pattern, 
-                                          course_page_contents)
+                                          courses_page_contents)
     sidenav = ""
     output_dir = output_root + fix_name(faculty_name)
     # Process all course links
@@ -254,8 +323,8 @@ def process_faculty_courses_page(courses_url):
             sidenav_link = '/' + output_dir + '/courses/' + course_name + '/'
             sidenav += '<li><a href="' + sidenav_link + '">' + course_name + '</a></li>\n'
             
-            course_contents = get_page_contents(course_url, course_content_pattern)
-            if (len(course_contents) > 0):
+            course_contents = get_course_page_contents(course_url)
+            if (course_contents):
                 # print course_contents
                 course_directory = output_dir + '/courses/' + course_name
                 # print "New course directory: " + course_directory
@@ -264,10 +333,13 @@ def process_faculty_courses_page(courses_url):
                 course_output = open(output_dir + '/courses/' + course_name +'/index.pcf', 'w+')
                 course_output.write(course_contents)
                 course_output.close()
+                sidenav_output = open(output_dir + '/courses/sidenav.inc', 'w+')
+                sidenav_output.write(sidenav)
+                sidenav_output.close()
+            else:
+                print "No content found in " + course_name
           
-    sidenav_output = open(output_dir + '/courses/sidenav.inc', 'w+')
-    sidenav_output.write(sidenav)
-    sidenav_output.close()
+    
     
 # Main loop
 # Read command line
