@@ -23,6 +23,9 @@ output_root = "people/"
 errors_root = "errors/"
 faculty_list_url = "http://www.sjsu.edu/people/a-z.jsp"
 # courses_pattern = re.compile('\/people\/.*\/courses\/')
+
+course_name_pattern = re.compile('\/courses\/(.*)"')
+
 faculty_directory_pattern = re.compile('http://www.sjsu.edu/people/(.*)/?')
 
 course_content_pattern = re.compile(
@@ -65,8 +68,8 @@ standard_navigation_links = ["Courses",
 def fix_name(faculty_name):
     return faculty_name.replace('.', '-').replace("'", "")
     
+# Replace unknown entities and unclosed tags
 def cleanup_code(code_in):
-    # Replace unknown entities and unclosed tags
     code_out = code_in.replace('&nbsp;', ' ').replace('<br>', '<br />')
     code_out = unescaped_ampersand_pattern.sub('&amp;', code_out)
     return code_out
@@ -90,7 +93,6 @@ def validate(content):
 # Read a page and output its content
 def output_page(faculty_name, page_url, page_name):
     faculty_root = output_root + faculty_name
-    # print "Writing directory: " + faculty_root + " url: " + page_url + " name " + page_name
     site_section = last_element_pattern.match(page_url).group(1)
     if (site_section == '/publications/' 
         or site_section == '/research/'
@@ -107,7 +109,6 @@ def output_page(faculty_name, page_url, page_name):
 
     # Get full name
     full_name = get_page_contents(page_url, full_name_pattern)
-    # print "Faculty Name is " + full_name
     
     # Get directory name from URL and create directory
     directory_name = last_element_pattern.match(page_url).group(1)
@@ -146,13 +147,11 @@ def output_page(faculty_name, page_url, page_name):
         error_output = open(error_directory + 'errors.xml', 'w+')
         error_output.write(validation_results + output_content.getvalue())
         error_output.close()
-    
     output_content.close()
 
 
 # Process one faculty site
 def  process_faculty_home_page(faculty_home_url):
-    # print "processing " + faculty_home_url
     faculty_name = faculty_name_pattern.match(faculty_home_url).group(1)
     directory_name_match = faculty_directory_pattern.match(faculty_home_url)
     output_directory = output_root + fix_name(directory_name_match.group(1))
@@ -212,27 +211,6 @@ def  process_faculty_home_page(faculty_home_url):
         home_output.close()
     else:
         print "No regex match found on home page for " + faculty_home_url
-
-'''def process_courses(courses_url)
-    if has_all_courses_page:
-        print "Found courses at " + courses_url
-        try:
-            courses_page = urllib2.urlopen(courses_url)
-            courses_raw = courses_page.read()
-            courses_page_contents = get_page_contents(courses_url, 
-                                        courses_page_contents_pattern)
-            if not os.path.exists(directory+'/courses/'):
-                os.makedirs(directory+'/courses/')
-            courses_output = open(directory+'/courses/index.pcf', 'w+')
-            courses_output.write(courses_page_contents)
-            courses_output.close()
-            all_course_names = re.findall(course_name_pattern, courses_raw)
-            process_faculty_courses_page(faculty_home_url, 
-                                         all_course_names,
-                                         directory)
-        except Exception as e:
-            print "Unexpected error: " + str(e)
-'''
        
 # Open a URL, read the contents, return part that matches pattern
 def get_page_contents(page_url, content_pattern):
@@ -251,31 +229,43 @@ def get_page_contents(page_url, content_pattern):
         print "Could not open page " + page_url
 
 # Process all of the courses for one faculty
-def process_faculty_courses_page(base_url):
-
+def process_faculty_courses_page(courses_url):
+    name_pattern = re.compile('http://www.sjsu.edu/people/(.*)/courses')
+    faculty_name = name_pattern.match(courses_url).group(1)
+    print "Getting courses for " + faculty_name
+    # Get list of courses
+    course_page_contents = get_page_contents(courses_url, 
+                                            courses_page_contents_pattern)
+    
+    # print course_page_contents
+    link_list = re.findall(course_name_pattern, 
+                                          course_page_contents)
     sidenav = ""
+    output_dir = output_root + fix_name(faculty_name)
+    # Process all course links
     for course_name in link_list:
-        course_url = base_url + "/courses/" + course_name + "/index.html"
-        # print "Checking: " + course_name
+        course_url = courses_url + course_name
+        print "Reading: " + course_name
+        
+        # Make sure this is a valid link
         if (not(course_name.startswith('index.html')) 
                 and (len(course_name)  >  0)):
             # print "Reading course: " + course_url
             sidenav_link = '/' + output_dir + '/courses/' + course_name + '/'
-            sidenav += '<li><a href="'+sidenav_link+'">'+course_name+'</a></li>\n'
+            sidenav += '<li><a href="' + sidenav_link + '">' + course_name + '</a></li>\n'
             
             course_contents = get_page_contents(course_url, course_content_pattern)
             if (len(course_contents) > 0):
                 # print course_contents
-                # print "Creating directory"
-                course_directory = output_directory + '/courses/' + course_name
+                course_directory = output_dir + '/courses/' + course_name
                 # print "New course directory: " + course_directory
                 if not os.path.exists(output_dir + '/courses/' + course_name):
                     os.makedirs(output_dir + '/courses/' + course_name)
                 course_output = open(output_dir + '/courses/' + course_name +'/index.pcf', 'w+')
                 course_output.write(course_contents)
                 course_output.close()
-            
-    sidenav_output = open(output_directory + '/courses/sidenav.inc', 'w+')
+          
+    sidenav_output = open(output_dir + '/courses/sidenav.inc', 'w+')
     sidenav_output.write(sidenav)
     sidenav_output.close()
     
