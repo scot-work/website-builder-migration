@@ -1,10 +1,7 @@
 ''' 
 TODO:
 
-Validate XML http://lxml.de/validation.html
-courses page content pattern
-Need to fix unclosed <p> tags
-sidenav.inc in every directory
+download and save binaries
 
 '''
 #imports
@@ -71,7 +68,7 @@ standard_navigation_links = ["Courses",
 def fix_name(faculty_name):
     return faculty_name.replace('.', '-').replace("'", "")
     
-# Replace unknown entities and unclosed tags
+# Replace unknown entities and unclosed BR tags
 def cleanup_code(code_in):
     if code_in:
         code_out = code_in.replace('&nbsp;', ' ').replace('<br>', '<br />')
@@ -94,7 +91,7 @@ def validate(content):
     else:
         return error_message
 
-# Read a page and output its content
+# Read a generic page and output its content
 def output_page(faculty_name, page_url, page_name):
     faculty_root = output_root + faculty_name
     site_section = last_element_pattern.match(page_url).group(1)
