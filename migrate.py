@@ -62,6 +62,17 @@ standard_navigation_links = ["Courses",
                              "Research &amp; Scholarly Activity", 
                              "University Expert", 
                              "Professional &amp; Service Activity"]
+                             
+with open ("footer.txt", "r") as myfile:
+    page_footer = myfile.read()
+    myfile.close()
+    
+with open ("header.txt", "r") as myfile:
+    page_header = myfile.read()
+    myfile.close()
+    
+sidenav_header = '<!-- com.omniupdate.editor csspath="/sjsu/_resources/ou/editor/standard-sidenav.css" cssmenu="/sjsu/_resources/ou/editor/standard-sidenav.txt" width="798" -->'
+
 # Functions
 
 # Periods and apostrophes are not allowed in OU, so replace in directory names
@@ -124,6 +135,7 @@ def output_page(faculty_name, page_url, page_name):
             os.makedirs(faculty_root + '/' + directory_name + '/')
         
         # Read beginning and end of pcf file
+        '''
         with open ("header.txt", "r") as myfile:
             page_header = myfile.read()
             page_header = page_header.replace('{{Page Title}}', full_name)
@@ -131,7 +143,7 @@ def output_page(faculty_name, page_url, page_name):
         with open ("footer.txt", "r") as myfile:
             page_footer = myfile.read()
         myfile.close()
-        
+        '''
         # assemble the file
         output_content = StringIO.StringIO()
         output_content.write(page_header)
@@ -146,6 +158,7 @@ def output_page(faculty_name, page_url, page_name):
             page_output.write(output_content.getvalue())
             page_output.close()
             sidenav_output = open(output_root + faculty_name + '/' + directory_name + '/sidenav.inc', 'w+')
+            sidenav_output.write(sidenav_header)
             sidenav_output.close()
         else:
             # File is not valid XML
@@ -181,7 +194,7 @@ def  process_faculty_home_page(faculty_home_url):
     
     # Process Links
     links = re.findall(link_pattern, primary_nav_match.group(1))
-    sidenav_content = ""
+    sidenav_content = sidenav_header
     for link in links:
         link_url = link[0]
         link_text = link[1]
@@ -201,7 +214,7 @@ def  process_faculty_home_page(faculty_home_url):
 
     faculty_page_match = page_contents_pattern_b.search(faculty_page_raw)
     if faculty_page_match:
-        faculty_page_contents = faculty_page_match.group(1)
+        faculty_page_contents = cleanup_code(faculty_page_match.group(1))
         with open ("header.txt", "r") as myfile:
             page_header = myfile.read()
             page_header = page_header.replace('{{Page Title}}', full_name)
@@ -302,12 +315,20 @@ def process_faculty_courses_page(courses_url):
     # Get list of courses
     print "getting content from " + courses_url
     courses_page_contents = get_courses_page_contents(courses_url)
-                                            
+    output_dir = output_root + fix_name(faculty_name)
+    if not os.path.exists(output_dir + '/courses/'):
+        os.makedirs(output_dir + '/courses/')
+    courses_output = open(output_dir + '/courses/index.pcf', 'w+')
+    courses_output.write(page_header)
+    courses_output.write(cleanup_code(courses_page_contents))
+    courses_output.write(page_footer)
+    courses_output.close()
+    
     # print course_page_contents
     link_list = re.findall(course_name_pattern, 
                                           courses_page_contents)
-    sidenav = ""
-    output_dir = output_root + fix_name(faculty_name)
+    sidenav = sidenav_header
+    
     # Process all course links
     for course_name in link_list:
         course_url = courses_url + course_name
@@ -319,7 +340,6 @@ def process_faculty_courses_page(courses_url):
             # print "Reading course: " + course_url
             sidenav_link = '/' + output_dir + '/courses/' + course_name + '/'
             sidenav += '<li><a href="' + sidenav_link + '">' + course_name + '</a></li>\n'
-            
             course_contents = get_course_page_contents(course_url)
             if (course_contents):
                 # print course_contents
@@ -328,16 +348,16 @@ def process_faculty_courses_page(courses_url):
                 if not os.path.exists(output_dir + '/courses/' + course_name):
                     os.makedirs(output_dir + '/courses/' + course_name)
                 course_output = open(output_dir + '/courses/' + course_name +'/index.pcf', 'w+')
+                course_output.write(page_header)
                 course_output.write(course_contents)
+                course_output.write(page_footer)
                 course_output.close()
-                sidenav_output = open(output_dir + '/courses/sidenav.inc', 'w+')
+                sidenav_output = open(output_dir + '/courses/' + course_name + '/sidenav.inc', 'w+')
                 sidenav_output.write(sidenav)
                 sidenav_output.close()
             else:
                 print "No content found in " + course_name
-          
-    
-    
+
 # Main loop
 # Read command line
 if not(len(sys.argv) > 1):
