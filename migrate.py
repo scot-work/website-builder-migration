@@ -57,11 +57,18 @@ faculty_name_pattern = re.compile('http://www.sjsu.edu/people/(.*)')
 
 page_title_placeholder_pattern = re.compile('{{.*?}}')
 
+image_tag_pattern = '<img .*? src="(.*?)"'
+
+local_doc_tag_pattern = '<a href="(/people/.*?\.(pdf|doc|jpg|docx)?)"'
+
 standard_navigation_links = ["Courses", 
                              "Publications &amp; Presentations", 
                              "Research &amp; Scholarly Activity", 
                              "University Expert", 
                              "Professional &amp; Service Activity"]
+
+ignored_images = ["/pics/arrow.gif",
+                "http://www.sjsu.edu/pics/logo_vert_webglobal.gif"]
                              
 with open ("footer.txt", "r") as myfile:
     page_footer = myfile.read()
@@ -74,6 +81,19 @@ with open ("header.txt", "r") as myfile:
 sidenav_header = '<!-- com.omniupdate.editor csspath="/sjsu/_resources/ou/editor/standard-sidenav.css" cssmenu="/sjsu/_resources/ou/editor/standard-sidenav.txt" width="798" -->'
 
 # Functions
+
+# Get images
+def get_images(code):
+    images = re.findall(image_tag_pattern, code)
+    for image in images:
+        if not image in ignored_images:
+            print image
+            
+# Get docs
+def get_docs(code):
+    docs = re.findall(local_doc_tag_pattern, code)
+    for doc in docs:
+        print doc[0]
 
 # Periods and apostrophes are not allowed in OU, so replace in directory names
 def fix_name(faculty_name):
@@ -192,6 +212,9 @@ def  process_faculty_home_page(faculty_home_url):
     # Get links
     primary_nav_match = primary_navigation_pattern.search(faculty_page_raw)
     
+    get_images(faculty_page_raw)
+    get_docs(faculty_page_raw)
+    
     # Process Links
     links = re.findall(link_pattern, primary_nav_match.group(1))
     sidenav_content = sidenav_header
@@ -229,6 +252,7 @@ def  process_faculty_home_page(faculty_home_url):
     else:
         print "No regex match found on home page for " + faculty_home_url
        
+
 # Open a course, read the contents, return part that matches pattern
 def get_course_page_contents(page_url):
     try:
@@ -244,8 +268,8 @@ def get_course_page_contents(page_url):
             return ""
     except:
         print "Could not open page " + page_url
-      
-          # get contents of courses page
+    
+# get contents of courses page
 def get_courses_page_contents(page_url):
     print "opening " + page_url
     try:
@@ -262,6 +286,7 @@ def get_courses_page_contents(page_url):
     except Exception as e:
         error_message = str(e.args)
         print error_message + " at " + page_url
+
     
 def get_page_title(page_url):
     try:
@@ -281,6 +306,10 @@ def get_page_contents(page_url):
     try:
         page = urllib2.urlopen(page_url)
         raw = page.read()
+        
+        get_images(raw)
+        get_docs(raw)
+        
         match = courses_page_contents_pattern.search(raw)
         if match:
             contents = match.group(1)
@@ -315,6 +344,10 @@ def process_faculty_courses_page(courses_url):
     # Get list of courses
     print "getting content from " + courses_url
     courses_page_contents = get_courses_page_contents(courses_url)
+    
+    get_images(courses_page_contents)
+    get_docs(courses_page_contents)
+    
     output_dir = output_root + fix_name(faculty_name)
     if not os.path.exists(output_dir + '/courses/'):
         os.makedirs(output_dir + '/courses/')
