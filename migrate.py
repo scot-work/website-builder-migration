@@ -6,6 +6,7 @@ download and save binaries
 '''
 #imports
 import urllib2
+import urllib
 from urllib2 import HTTPError
 import re
 import sys
@@ -13,6 +14,7 @@ import os
 from lxml import etree
 from lxml.etree import XMLParser
 import StringIO
+import string
 
 #constants
 sjsu_home_url = "http://www.sjsu.edu"
@@ -91,9 +93,35 @@ def get_images(code):
             
 # Get docs
 def get_docs(code):
+    # Get list of links that match
     docs = re.findall(local_doc_tag_pattern, code)
     for doc in docs:
-        print doc[0]
+        # Clean up URL
+        doc_path = doc[0].replace(' ', '%20')
+        doc_url = 'http://www.sjsu.edu' + doc_path
+        output_dir = fix_name(doc_path[1:string.rfind(doc_path, '/')])
+        # file_name = urllib.quote_plus(doc_path[string.rfind(doc_path, '/') + 1:])
+        file_name = doc_path[string.rfind(doc_path, '/') + 1:].replace('%20', ' ')
+        print "file name: " + file_name
+        
+        #Create directory if necessary
+        if not os.path.exists(output_dir):
+            print "Creating dir " + output_dir
+            os.makedirs(output_dir)
+                
+        try:
+            remote = urllib2.urlopen(doc_url)
+            print "Reading " + doc_url
+            # Need to replace . in path, but not filename
+            # output_path = fix_name(doc_path[1:])
+            output_path = output_dir + '/' + file_name
+            print "Writing " + output_path
+            local_doc = open(output_path, 'w+')
+            local_doc.write(remote.read())
+            local_doc.close()
+        except Exception as e:
+            error_message = str(e.args)
+            print "Error: " + error_message + ' in ' + file_name
 
 # Periods and apostrophes are not allowed in OU, so replace in directory names
 def fix_name(faculty_name):
@@ -154,16 +182,6 @@ def output_page(faculty_name, page_url, page_name):
         if not os.path.exists(faculty_root + '/' + directory_name + '/'):
             os.makedirs(faculty_root + '/' + directory_name + '/')
         
-        # Read beginning and end of pcf file
-        '''
-        with open ("header.txt", "r") as myfile:
-            page_header = myfile.read()
-            page_header = page_header.replace('{{Page Title}}', full_name)
-        myfile.close()
-        with open ("footer.txt", "r") as myfile:
-            page_footer = myfile.read()
-        myfile.close()
-        '''
         # assemble the file
         output_content = StringIO.StringIO()
         output_content.write(page_header)

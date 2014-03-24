@@ -24,7 +24,7 @@
 		</parameter>		
 		<!-- /com.omniupdate.properties -->
 		<!-- com.omniupdate.properties -->
-		<parameter name="primarynav" prompt="Primary Nav order" group="Everyone" alt="Order to appear in Primary Navigation.">01</parameter>
+		<parameter name="primarynav" prompt="Primary Nav order" group="Everyone" alt="Order to appear in Primary Navigation."></parameter>
 		<!-- /com.omniupdate.properties -->
 	</config>
 	<metadata>
