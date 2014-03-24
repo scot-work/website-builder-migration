@@ -6,7 +6,7 @@ download and save binaries
 '''
 #imports
 import urllib2
-import urllib
+# import urllib
 from urllib2 import HTTPError
 import re
 import sys
@@ -15,8 +15,15 @@ from lxml import etree
 from lxml.etree import XMLParser
 import StringIO
 import string
+import logging
 
-#constants
+# set up logging
+logging.basicConfig(filename='migrate.log',level=logging.DEBUG)
+logging.debug('This message should go to the log file')
+logging.info('So should this')
+logging.warning('And this, too')
+
+# constants
 sjsu_home_url = "http://www.sjsu.edu"
 output_root = "people/"
 errors_root = "errors/"
@@ -102,26 +109,23 @@ def get_docs(code):
         output_dir = fix_name(doc_path[1:string.rfind(doc_path, '/')])
         # Change file name back to match link
         file_name = doc_path[string.rfind(doc_path, '/') + 1:].replace('%20', ' ')
-        print "file name: " + file_name
+        logging.info("reading file: " + file_name)
         
         # Create directory if necessary
         if not os.path.exists(output_dir):
-            print "Creating dir " + output_dir
+            logging.info( "Creating dir " + output_dir)
             os.makedirs(output_dir)
                 
         try:
             remote = urllib2.urlopen(doc_url)
-            print "Reading " + doc_url
-            # Need to replace . in path, but not filename
-            # output_path = fix_name(doc_path[1:])
             output_path = output_dir + '/' + file_name
-            print "Writing " + output_path
+            logging.info( "Writing " + output_path )
             local_doc = open(output_path, 'w+')
             local_doc.write(remote.read())
             local_doc.close()
         except Exception as e:
             error_message = str(e.args)
-            print "Error: " + error_message + ' in ' + file_name
+            logging.error( "Error: " + error_message + ' in ' + file_name )
 
 # Periods and apostrophes are not allowed in OU, so replace in directory names
 def fix_name(faculty_name):
@@ -157,10 +161,9 @@ def output_page(faculty_name, page_url, page_name):
     if (site_section == '/publications/' 
         or site_section == '/research/'
         or site_section == '/expert/'):
-        # print "Publications or Research page"
         page_contents = get_page_contents(page_url)
         if (page_contents == ""):
-            print "No match found in " + page_url
+            logging.info( "No match found in " + page_url )
             
     elif (site_section == '/courses/'):
         process_faculty_courses_page(page_url)
@@ -178,7 +181,7 @@ def output_page(faculty_name, page_url, page_name):
         # Get full name
         full_name = get_page_title(page_url)
         if not full_name:
-            print "Page title not found " + page_url
+            logging.error( "Page title not found " + page_url )
         
         # Get directory name from URL and create directory
         directory_name = last_element_pattern.match(page_url).group(1)
@@ -271,7 +274,7 @@ def  process_faculty_home_page(faculty_home_url):
         myfile.close()
         home_output.close()
     else:
-        print "No regex match found on home page for " + faculty_home_url
+        logging.error( "No regex match found on home page for " + faculty_home_url )
        
 
 # Open a course, read the contents, return part that matches pattern
@@ -284,11 +287,11 @@ def get_course_page_contents(page_url):
             contents = match.group(1)
             return contents
         else:
-            print "No course content found in " + page_url
-            print raw
+            logging.error( "No course content found in " + page_url )
+            logging.error( raw )
             return ""
     except:
-        print "Could not open page " + page_url
+        logging.error( "Could not open page " + page_url )
     
 # get contents of courses page
 def get_courses_page_contents(page_url):
@@ -301,12 +304,12 @@ def get_courses_page_contents(page_url):
             contents = match.group(1)
             return contents
         else:
-            print "No course content found in " + page_url
-            print raw
+            logging.error( "No course content found in " + page_url )
+            logging.error( raw )
             return ""
     except Exception as e:
         error_message = str(e.args)
-        print error_message + " at " + page_url
+        logging.error( error_message + " at " + page_url )
 
     
 def get_page_title(page_url):
@@ -320,7 +323,7 @@ def get_page_title(page_url):
             
     except Exception as e:
         error_message = str(e.args)
-        print error_message + " at " + page_url       
+        logging.error( error_message + " at " + page_url )      
                 
 # Open a URL, read the contents, return part that matches pattern
 def get_page_contents(page_url):
@@ -351,19 +354,19 @@ def get_page_contents(page_url):
                         contents = match.group(1)
                         return contents
                     else:
-                        print "No match found in " + page_url
+                        logging.error( "No match found in " + page_url )
                         return ""
     except Exception as e:
         error_message = str(e.args)
-        print error_message + " at " + page_url
+        logging.error( error_message + " at " + page_url )
 
 # Process all of the courses for one faculty
 def process_faculty_courses_page(courses_url):
     name_pattern = re.compile('http://www.sjsu.edu/people/(.*)/courses')
     faculty_name = name_pattern.match(courses_url).group(1)
-    print "Getting courses for " + faculty_name
+    # print "Getting courses for " + faculty_name
     # Get list of courses
-    print "getting content from " + courses_url
+    # print "getting content from " + courses_url
     courses_page_contents = get_courses_page_contents(courses_url)
     
     get_images(courses_page_contents)
@@ -386,7 +389,7 @@ def process_faculty_courses_page(courses_url):
     # Process all course links
     for course_name in link_list:
         course_url = courses_url + course_name
-        print "Reading: " + course_name
+        # print "Reading: " + course_name
         
         # Make sure this is a valid link
         if (not(course_name.startswith('index.html')) 
@@ -410,7 +413,7 @@ def process_faculty_courses_page(courses_url):
                 sidenav_output.write(sidenav)
                 sidenav_output.close()
             else:
-                print "No content found in " + course_name
+                logging.error( "No content found in " + course_name )
 
 # Main loop
 # Read command line
