@@ -100,11 +100,11 @@ def get_docs(code):
         doc_path = doc[0].replace(' ', '%20')
         doc_url = 'http://www.sjsu.edu' + doc_path
         output_dir = fix_name(doc_path[1:string.rfind(doc_path, '/')])
-        # file_name = urllib.quote_plus(doc_path[string.rfind(doc_path, '/') + 1:])
+        # Change file name back to match link
         file_name = doc_path[string.rfind(doc_path, '/') + 1:].replace('%20', ' ')
         print "file name: " + file_name
         
-        #Create directory if necessary
+        # Create directory if necessary
         if not os.path.exists(output_dir):
             print "Creating dir " + output_dir
             os.makedirs(output_dir)
@@ -172,6 +172,9 @@ def output_page(faculty_name, page_url, page_name):
         print "empty page " + page_url
     else:
         page_contents = cleanup_code(page_contents)
+        
+        # Need to change links to replace . with -
+        
         # Get full name
         full_name = get_page_title(page_url)
         if not full_name:
