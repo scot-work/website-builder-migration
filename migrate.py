@@ -96,7 +96,7 @@ def get_images(code):
     images = re.findall(image_tag_pattern, code)
     for image in images:
         if not image in ignored_images:
-            print image
+            logging.info( "Found image: " + image )
             
 # Get docs
 def get_docs(code):
@@ -172,7 +172,7 @@ def output_page(faculty_name, page_url, page_name):
         page_contents = get_page_contents(page_url)
     
     if (not page_contents or page_contents == ""):
-        print "empty page " + page_url
+        logging.info( "empty page " + page_url )
     else:
         page_contents = cleanup_code(page_contents)
         
@@ -224,7 +224,7 @@ def  process_faculty_home_page(faculty_home_url):
     try:
         faculty_page = urllib2.urlopen(faculty_home_url)
     except HTTPError, e:
-        print "HTTP error opening " + faculty_home_url
+        logging.error( "HTTP error opening " + faculty_home_url )
         sys.exit()
     
     # Create output directory
@@ -295,7 +295,7 @@ def get_course_page_contents(page_url):
     
 # get contents of courses page
 def get_courses_page_contents(page_url):
-    print "opening " + page_url
+    logging.info( "opening " + page_url )
     try:
         page = urllib2.urlopen(page_url)
         raw = page.read()
@@ -364,44 +364,39 @@ def get_page_contents(page_url):
 def process_faculty_courses_page(courses_url):
     name_pattern = re.compile('http://www.sjsu.edu/people/(.*)/courses')
     faculty_name = name_pattern.match(courses_url).group(1)
-    # print "Getting courses for " + faculty_name
     # Get list of courses
-    # print "getting content from " + courses_url
     courses_page_contents = get_courses_page_contents(courses_url)
     
     get_images(courses_page_contents)
     get_docs(courses_page_contents)
-    
+    sidenav = sidenav_header
     output_dir = output_root + fix_name(faculty_name)
     if not os.path.exists(output_dir + '/courses/'):
         os.makedirs(output_dir + '/courses/')
     courses_output = open(output_dir + '/courses/index.pcf', 'w+')
-    courses_output.write(page_header)
+    full_name = get_page_title(courses_url)
+    # page_header = page_header.replace('{{Page Title}}', full_name)
+    courses_output.write(page_header.replace('{{Page Title}}', full_name))
     courses_output.write(cleanup_code(courses_page_contents))
     courses_output.write(page_footer)
     courses_output.close()
-    
+
     # print course_page_contents
     link_list = re.findall(course_name_pattern, 
                                           courses_page_contents)
-    sidenav = sidenav_header
     
     # Process all course links
     for course_name in link_list:
         course_url = courses_url + course_name
-        # print "Reading: " + course_name
         
         # Make sure this is a valid link
         if (not(course_name.startswith('index.html')) 
                 and (len(course_name)  >  0)):
-            # print "Reading course: " + course_url
             sidenav_link = '/' + output_dir + '/courses/' + course_name + '/'
             sidenav += '<li><a href="' + sidenav_link + '">' + course_name + '</a></li>\n'
             course_contents = get_course_page_contents(course_url)
             if (course_contents):
-                # print course_contents
                 course_directory = output_dir + '/courses/' + course_name
-                # print "New course directory: " + course_directory
                 if not os.path.exists(output_dir + '/courses/' + course_name):
                     os.makedirs(output_dir + '/courses/' + course_name)
                 course_output = open(output_dir + '/courses/' + course_name +'/index.pcf', 'w+')
@@ -414,6 +409,9 @@ def process_faculty_courses_page(courses_url):
                 sidenav_output.close()
             else:
                 logging.error( "No content found in " + course_name )
+    sidenav_output = open(output_dir + '/courses/sidenav.inc', 'w+')
+    sidenav_output.write(sidenav)
+    sidenav_output.close()
 
 # Main loop
 # Read command line
