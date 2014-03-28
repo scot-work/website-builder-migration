@@ -144,6 +144,9 @@ def cleanup_code(code_in):
         code_out = code_in.replace('&nbsp;', ' ').replace('<br>', '<br />')
         # replace & with &amp;
         code_out = unescaped_ampersand_pattern.sub('&amp;', code_out)
+        print re.sub('<a href="(/people/.*?)">(.*?)</a>', 'found a link', code_out, 0, re.S)
+        
+        
         return code_out
     else:
         return ""
