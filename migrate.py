@@ -166,14 +166,16 @@ def validate(content):
 def output_page(faculty_name, page_url, page_name):
     faculty_root = output_root + faculty_name
     site_section = last_element_pattern.match(page_url).group(1)
+    '''
     if (site_section == '/publications/' 
         or site_section == '/research/'
         or site_section == '/expert/'):
-        page_contents = get_page_contents(page_url)
+    
+    page_contents = get_page_contents(page_url)
         if (page_contents == ""):
             logging.info( "No match found in " + page_url )
-            
-    elif (site_section == '/courses/'):
+    '''        
+    if (site_section == '/courses/'):
         process_faculty_courses_page(page_url)
         return
     else:
@@ -191,21 +193,21 @@ def output_page(faculty_name, page_url, page_name):
         if not full_name:
             logging.error( "Page title not found " + page_url )
         
-        # Get directory name from URL and create directory
-        directory_name = last_element_pattern.match(page_url).group(1)
-        if not os.path.exists(faculty_root + '/' + directory_name + '/'):
-            logging.info( "Creating dir " + faculty_root + '/' + directory_name + '/')
-            os.makedirs(faculty_root + '/' + directory_name + '/')
-        
         # assemble the file
         output_content = StringIO.StringIO()
         output_content.write(page_header)
         output_content.write(page_contents)
         output_content.write(page_footer)
 
+        directory_name = last_element_pattern.match(page_url).group(1)
         # Make sure content is valid
         validation_results = validate(output_content)
         if (validation_results == "valid"):
+            # Get directory name from URL and create directory
+            
+            if not os.path.exists(faculty_root + '/' + directory_name + '/'):
+                logging.info( "Creating dir " + faculty_root + directory_name )
+                os.makedirs(faculty_root + '/' + directory_name + '/')
             # Open output file
             page_output = open(output_root + faculty_name + '/' + directory_name + '/index.pcf', 'w+')
             page_output.write(output_content.getvalue())
@@ -272,21 +274,8 @@ def  process_faculty_home_page(faculty_home_url):
     faculty_page_match = page_contents_pattern_b.search(faculty_page_raw)
     if faculty_page_match:
         faculty_page_contents = cleanup_code(faculty_page_match.group(1))
-        '''
-        with open ("header.txt", "r") as myfile:
-            page_header = myfile.read()
-            page_header = page_header.replace('{{Page Title}}', full_name)
-        '''
         home_output.write(home_header.replace('{{Page Title}}', full_name))
-        # myfile.close()
-        home_output.write(faculty_page_contents)
-        '''
-        with open ("footer.txt", "r") as myfile:
-            page_footer = myfile.read()
-        '''
         home_output.write(page_footer)
-        
-        # myfile.close()
         home_output.close()
     else:
         logging.error( "No regex match found on home page for " + faculty_home_url )
@@ -362,7 +351,7 @@ def get_page_contents(page_url):
         else:
             match = page_contents_pattern_b.search(raw)
             if match:
-                logging.info("matched  pattern b")
+                logging.info("matched pattern b")
                 contents = match.group(1)
                 return contents
             else:
@@ -409,34 +398,35 @@ def process_faculty_courses_page(courses_url):
                                           courses_page_contents)
     
     # Process all course links
-    for course_name in link_list:
-        course_url = courses_url + course_name
+    for course_dir in link_list:
+        course_url = courses_url + course_dir
         
         # Make sure this is a valid link
-        if (not(course_name.startswith('index.html')) 
-                and (len(course_name)  >  0)):
-            sidenav_link = '/' + output_dir + '/courses/' + course_name + '/'
-            sidenav += '<li><a href="' + sidenav_link + '">' + course_name + '</a></li>\n'
+        if (not(course_dir.startswith('index.html')) 
+                and (len(course_dir)  >  0)):
+            course_title = get_page_title(course_url)
+            if not course_title:
+                logging.error("no course title at: " + course_url)
+                course_title = course_dir
+            sidenav_link = '/' + output_dir + '/courses/' + course_dir + '/'
+            sidenav += '<li><a href="' + sidenav_link + '">' + course_title + '</a></li>\n'
             course_contents = get_course_page_contents(course_url)
             if (course_contents):
                 # Replace page title
-                course_title = get_page_title(course_url)
-                if not course_title:
-                    logging.info("no course title at: " + course_url)
-                    course_title = course_name
-                course_directory = output_dir + '/courses/' + course_name
-                if not os.path.exists(output_dir + '/courses/' + course_name):
-                    os.makedirs(output_dir + '/courses/' + course_name)
-                course_output = open(output_dir + '/courses/' + course_name +'/index.pcf', 'w+')
+                
+                course_directory = output_dir + '/courses/' + course_dir
+                if not os.path.exists(output_dir + '/courses/' + course_dir):
+                    os.makedirs(output_dir + '/courses/' + course_dir)
+                course_output = open(output_dir + '/courses/' + course_dir +'/index.pcf', 'w+')
                 course_output.write(page_header.replace('{{Page Title}}', course_title))
                 course_output.write(course_contents)
                 course_output.write(page_footer)
                 course_output.close()
-                sidenav_output = open(output_dir + '/courses/' + course_name + '/sidenav.inc', 'w+')
+                sidenav_output = open(output_dir + '/courses/' + course_dir + '/sidenav.inc', 'w+')
                 sidenav_output.write(sidenav)
                 sidenav_output.close()
             else:
-                logging.error( "No content found in " + course_name )
+                logging.error( "No content found in " + course_dir )
     sidenav_output = open(output_dir + '/courses/sidenav.inc', 'w+')
     sidenav_output.write(sidenav)
     sidenav_output.close()
