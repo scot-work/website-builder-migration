@@ -24,8 +24,7 @@ logging.basicConfig(filename='migrate.log',level=logging.DEBUG)
 sjsu_home_url = "http://www.sjsu.edu"
 output_root = "people/"
 errors_root = "errors/"
-faculty_list_url = "http://www.sjsu.edu/people/a-z.jsp"
-# courses_pattern = re.compile('\/people\/.*\/courses\/')
+faculty_list_url = "http://www.sjsu.edu/people/a-z.jsp" 
 
 course_name_pattern = re.compile('\/courses\/(.*)"')
 
@@ -98,55 +97,61 @@ sidenav_header = '<!-- com.omniupdate.editor csspath="/sjsu/_resources/ou/editor
 
 # Get images
 def get_images(code):
-    images = re.findall(image_tag_pattern, code)
-    for image in images:
-        if not image in ignored_images:
-            logging.info( "Found image: " + image )
+    if code:
+        images = re.findall(image_tag_pattern, code)
+        for image in images:
+            if not image in ignored_images:
+                logging.info( "Found image: " + image )
+    else:
+        print "code is empty"
             
 # Get docs
 def get_docs(code):
     # Get list of links that match
     # <a href="(/people/.*?\.(pdf|doc|jpg|docx|zip)?)"
-    docs = re.findall(local_doc_tag_pattern, code)
-    for doc in docs:
-        # Clean up URL
-        doc_path = doc[0].replace(' ', '%20')
-        doc_url = 'http://www.sjsu.edu' + doc_path
-        output_dir = fix_name(doc_path[1:string.rfind(doc_path, '/')])
-        # Change file name back to match link
-        file_name = doc_path[string.rfind(doc_path, '/') + 1:].replace('%20', ' ')
-        logging.info("reading file: " + file_name)
-        
-        # Create directory if necessary
-        if not os.path.exists(output_dir):
-            logging.info( "Creating dir " + output_dir)
-            os.makedirs(output_dir)
-                
-        try:
-            remote = urllib2.urlopen(doc_url)
-            output_path = output_dir + '/' + file_name
-            logging.info( "Writing " + output_path )
-            local_doc = open(output_path, 'w+')
-            local_doc.write(remote.read())
-            local_doc.close()
-        except Exception as e:
-            error_message = str(e.args)
-            logging.error( "Error: " + error_message + ' in ' + file_name )
+    if code:
+        docs = re.findall(local_doc_tag_pattern, code)
+        for doc in docs:
+            # Clean up URL
+            doc_path = doc[0].replace(' ', '%20')
+            doc_url = 'http://www.sjsu.edu' + doc_path
+            output_dir = fix_name(doc_path[1:string.rfind(doc_path, '/')])
+            # Change file name back to match link
+            file_name = doc_path[string.rfind(doc_path, '/') + 1:].replace('%20', ' ')
+            logging.info("reading file: " + file_name)
+            
+            # Create directory if necessary
+            if not os.path.exists(output_dir):
+                logging.info( "Creating dir " + output_dir)
+                os.makedirs(output_dir)
+                    
+            try:
+                remote = urllib2.urlopen(doc_url)
+                output_path = output_dir + '/' + file_name
+                logging.info( "Writing " + output_path )
+                local_doc = open(output_path, 'w+')
+                local_doc.write(remote.read())
+                local_doc.close()
+            except Exception as e:
+                error_message = str(e.args)
+                logging.error( "Error: " + error_message + ' in ' + file_name )
+    else:
+        print "code is empty"
 
 # Periods and apostrophes are not allowed in OU, so replace in directory names
 def fix_name(faculty_name):
     return faculty_name.replace('.', '-').replace("'", "")
     
 # Replace unknown entities and unclosed BR tags
-def cleanup_code(code_in):
+def cleanup_code(code_in, old_name):
     if code_in:
         # replace &nbsp; with space, <br> with <br />
         code_out = code_in.replace('&nbsp;', ' ').replace('<br>', '<br />')
         # replace & with &amp;
         code_out = unescaped_ampersand_pattern.sub('&amp;', code_out)
-        print re.sub('<a href="(/people/.*?)">(.*?)</a>', 'found a link', code_out, 0, re.S)
-        
-        
+        # fix links to reflect new directory name
+        new_name = fix_name(old_name)
+        code_out = code_out.replace(old_name, new_name)
         return code_out
     else:
         return ""
@@ -187,7 +192,7 @@ def output_page(faculty_name, page_url, page_name):
     if (not page_contents or page_contents == ""):
         logging.error( "empty page " + page_url )
     else:
-        page_contents = cleanup_code(page_contents)
+        page_contents = cleanup_code(page_contents, faculty_name)
         
         # Need to change links to replace . with -
         
@@ -276,7 +281,7 @@ def  process_faculty_home_page(faculty_home_url):
 
     faculty_page_match = page_contents_pattern_b.search(faculty_page_raw)
     if faculty_page_match:
-        faculty_page_contents = cleanup_code(faculty_page_match.group(1))
+        faculty_page_contents = cleanup_code(faculty_page_match.group(1), faculty_name)
         home_output.write(home_header.replace('{{Page Title}}', full_name))
         home_output.write(page_footer)
         home_output.close()
@@ -286,13 +291,14 @@ def  process_faculty_home_page(faculty_home_url):
 
 # Open a course, read the contents, return part that matches pattern
 def get_course_page_contents(page_url):
+    faculty_name = faculty_name_pattern.match(page_url).group(1)
     try:
         page = urllib2.urlopen(page_url)
         raw = page.read()
         match = course_content_pattern.search(raw)
         if match:
             contents = match.group(1)
-            return cleanup_code(contents)
+            return cleanup_code(contents, faculty_name)
         else:
             logging.error( "No course content found in " + page_url )
             logging.error( raw )
@@ -303,13 +309,14 @@ def get_course_page_contents(page_url):
 # get contents of courses page
 def get_courses_page_contents(page_url):
     logging.info( "opening " + page_url )
+    faculty_name = faculty_name_pattern.match(page_url).group(1)
     try:
         page = urllib2.urlopen(page_url)
         raw = page.read()
         match = courses_page_contents_pattern.search(raw)
         if match:
             contents = match.group(1)
-            return cleanup_code(contents)
+            return cleanup_code(contents, faculty_name)
         else:
             logging.error( "No course content found in " + page_url )
             logging.error( raw )
@@ -392,7 +399,7 @@ def process_faculty_courses_page(courses_url):
     courses_output = open(output_dir + '/courses/index.pcf', 'w+')
     full_name = get_page_title(courses_url)
     courses_output.write(page_header.replace('{{Page Title}}', full_name))
-    courses_output.write(cleanup_code(courses_page_contents))
+    courses_output.write(cleanup_code(courses_page_contents, faculty_name))
     courses_output.write(page_footer)
     courses_output.close()
 
