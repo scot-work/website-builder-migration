@@ -25,7 +25,7 @@ OUTPUT_ROOT = "people/"
 ERRORS_ROOT = "errors/"
 FACULTY_LIST_URL = "http://www.sjsu.edu/people/a-z.jsp" 
 
-COURSE_NAME_PATTERN = re.compile('\/courses\/(.*)"')
+COURSE_NAME_PATTERN = re.compile('/courses/(.*)"')
 
 FACULTY_DIRECTORY_PATTERN = re.compile('http://www.sjsu.edu/people/(.*)/?')
 
@@ -37,15 +37,15 @@ FACULTY_LINK_PATTERN = re.compile('<li><a href="(/people/.*)">.*</a></li>')
 PAGE_CONTENTS_PATTERN = re.compile(
     '<div id="pagetitle">.*?</div>(.*)</div>.*?</div>.*?<div id="disclaimer_people">', re.S)
 
-PAGE_CONTENTS_PATTERN_b = re.compile(
+PAGE_CONTENTS_PATTERN_B = re.compile(
     '<div id="pagetitle">.*?</div>(.*)<div id="disclaimer_people">', re.S)
     
-PAGE_CONTENTS_PATTERN_c = re.compile(
+PAGE_CONTENTS_PATTERN_C = re.compile(
     '<!-- start column one -->(.*)<!-- end column one -->', re.S)
 
 PAGE_TITLE_PATTERN = re.compile('<div id="pagetitle">.*?<h2>(.*)</h2>', re.S)
 
-COURSE_PAGE_TITLE_PATTERN = re.compile('<h2 class="red"></h2>.*?<h2>(.*)</h2>', re.S)
+COURSE_PATE_TITLE_PATTERN = re.compile('<h2 class="red"></h2>.*?<h2>(.*)</h2>', re.S)
 
 UNESCAPED_AMPERSAND_PATTERN = re.compile('&(?!amp;)')
 
@@ -74,38 +74,38 @@ standard_navigation_links = ["Courses",
                              "University Expert", 
                              "Professional &amp; Service Activity"]
 '''
-ignored_images = ["/pics/arrow.gif",
+IGNORED_IMAGES = ["/pics/arrow.gif",
                 "http://www.sjsu.edu/pics/logo_vert_webglobal.gif"]
                              
 with open ("footer.txt", "r") as textfile:
-    page_footer = textfile.read()
+    PAGE_FOOTER = textfile.read()
     textfile.close()
     
 # Header for interior pages (not in site index)
 with open ("header-interior.txt", "r") as textfile:
-    page_header = textfile.read()
+    PAGE_HEADER = textfile.read()
     textfile.close()
 
 # header for faculty home page (in site index)    
 with open ("header-home.txt", "r") as textfile:
-    home_header = textfile.read()
+    HOME_HEADER = textfile.read()
     textfile.close()
     
 SIDENAV_HEADER = '<!-- com.omniupdate.editor csspath="/sjsu/_resources/ou/editor/standard-sidenav.css" cssmenu="/sjsu/_resources/ou/editor/standard-sidenav.txt" width="798" -->'
 
 # Functions
 
-# Get images
+""" Get images """
 def get_images(code):
     if code:
         images = re.findall(IMAGE_TAG_PATTERN, code)
         for image in images:
-            if not image in ignored_images:
+            if not image in IGNORED_IMAGES:
                 logging.info( "Found image: " + image )
     else:
         logging.error("code is empty looking for images")
             
-# Get docs
+""" Get docs """
 def get_docs(code):
     # Get list of links that match
     # <a href="(/people/.*?\.(pdf|doc|jpg|docx|zip)?)"
@@ -138,11 +138,11 @@ def get_docs(code):
     else:
         print "code is empty"
 
-# Periods and apostrophes are not allowed in OU, so replace in directory names
+""" Periods and apostrophes are not allowed in OU, so replace in directory names """
 def fix_name(faculty_name):
     return faculty_name.replace('.', '-').replace("'", "")
     
-# Replace unknown entities and unclosed BR tags
+""" Replace unknown entities and unclosed BR tags """
 def cleanup_code(code_in, old_name):
     if code_in:
         # replace &nbsp; with space, <br> with <br />
@@ -151,14 +151,13 @@ def cleanup_code(code_in, old_name):
         code_out = UNESCAPED_AMPERSAND_PATTERN.sub('&amp;', code_out)
         # fix links to reflect new directory name
         new_name = fix_name(old_name)
-        print "Replacing " + old_name + " with " + new_name
         logging.info("Replacing " + old_name + " with " + new_name)
         code_out = code_out.replace(old_name, new_name)
         return code_out
     else:
         return ""
     
-# Determine if this is valid XML
+""" Determine if this is valid XML """
 def validate(content):
     valid = True
     parser = etree.XMLParser(dtd_validation=True)
@@ -172,7 +171,7 @@ def validate(content):
     else:
         return error_message
 
-# Read a generic page and output its content
+""" Read a generic page and output its content """
 def output_page(old_name, page_url, page_name):
     new_name = fix_name(old_name)
     faculty_root = OUTPUT_ROOT + new_name
@@ -198,9 +197,9 @@ def output_page(old_name, page_url, page_name):
         
         # assemble the file
         output_content = StringIO.StringIO()
-        output_content.write(page_header)
+        output_content.write(PAGE_HEADER)
         output_content.write(page_contents)
-        output_content.write(page_footer)
+        output_content.write(PAGE_FOOTER)
 
         directory_name = LAST_ELEMENT_PATTERN.match(page_url).group(1)
         # Make sure content is valid
@@ -229,7 +228,7 @@ def output_page(old_name, page_url, page_name):
         output_content.close()
 
 
-# Process one faculty site
+""" Process one faculty site """
 def  process_faculty_home_page(faculty_home_url):
     faculty_name = FACULTY_NAME_PATTERN.match(faculty_home_url).group(1)
     logging.info("Processing " + faculty_name)
@@ -274,17 +273,17 @@ def  process_faculty_home_page(faculty_home_url):
     # Get full name
     full_name = get_page_title(faculty_home_url)
 
-    faculty_page_match = PAGE_CONTENTS_PATTERN_b.search(faculty_page_raw)
+    faculty_page_match = PAGE_CONTENTS_PATTERN_B.search(faculty_page_raw)
     if faculty_page_match:
         faculty_page_contents = cleanup_code(faculty_page_match.group(1), faculty_name)
-        home_output.write(home_header.replace('{{Page Title}}', full_name))
-        home_output.write(page_footer)
+        home_output.write(HOME_HEADER.replace('{{Page Title}}', full_name))
+        home_output.write(PAGE_FOOTER)
         home_output.close()
     else:
         logging.error( "No regex match found on home page for " + faculty_home_url )
        
 
-# Open a course, read the contents, return part that matches pattern
+""" Open a course, read the contents, return part that matches pattern """
 def get_course_page_contents(page_url):
     faculty_name = FACULTY_NAME_PATTERN.match(page_url).group(1)
     try:
@@ -301,7 +300,7 @@ def get_course_page_contents(page_url):
     except:
         logging.error( "Could not open page " + page_url )
     
-# get contents of courses page
+""" get contents of courses page """
 def get_courses_page_contents(page_url):
     logging.info( "opening " + page_url )
     faculty_name = FACULTY_NAME_PATTERN.match(page_url).group(1)
@@ -320,7 +319,7 @@ def get_courses_page_contents(page_url):
         error_message = str(e.args)
         logging.error( error_message + " at " + page_url )
 
-# Get the page title
+""" Get the page title """
 def get_page_title(page_url):
     title = ""
     try:
@@ -330,7 +329,7 @@ def get_page_title(page_url):
         if match:
             title = match.group(1)
         else:
-            match = course_PAGE_TITLE_PATTERN.search(raw)
+            match = COURSE_PATE_TITLE_PATTERN.search(raw)
             if match:
                 title = match.group(1)
         return title
@@ -338,7 +337,7 @@ def get_page_title(page_url):
         error_message = str(e.args)
         logging.error( error_message + " at " + page_url )
                 
-# Open a URL, read the contents, return part that matches pattern
+""" Open a URL, read the contents, return part that matches pattern """
 def get_page_contents(page_url):
     logging.info( "Getting contents from page at " + page_url )
     try:
@@ -354,13 +353,13 @@ def get_page_contents(page_url):
             contents = match.group(1)
             return contents
         else:
-            match = PAGE_CONTENTS_PATTERN_b.search(raw)
+            match = PAGE_CONTENTS_PATTERN_B.search(raw)
             if match:
                 logging.info("matched pattern b")
                 contents = match.group(1)
                 return contents
             else:
-                match = PAGE_CONTENTS_PATTERN_c.search(raw)
+                match = PAGE_CONTENTS_PATTERN_C.search(raw)
                 if match:
                     logging.info("matched pattern c")
                     contents = match.group(1)
@@ -378,7 +377,7 @@ def get_page_contents(page_url):
         error_message = str(e.args)
         logging.error( error_message + " at " + page_url )
 
-# Process all of the courses for one faculty
+""" Process all of the courses for one faculty """
 def process_faculty_courses_page(courses_url):
     name_pattern = re.compile('http://www.sjsu.edu/people/(.*)/courses')
     faculty_name = name_pattern.match(courses_url).group(1)
@@ -393,9 +392,9 @@ def process_faculty_courses_page(courses_url):
         os.makedirs(output_dir + '/courses/')
     courses_output = open(output_dir + '/courses/index.pcf', 'w+')
     full_name = get_page_title(courses_url)
-    courses_output.write(page_header.replace('{{Page Title}}', full_name))
+    courses_output.write(PAGE_HEADER.replace('{{Page Title}}', full_name))
     courses_output.write(cleanup_code(courses_page_contents, faculty_name))
-    courses_output.write(page_footer)
+    courses_output.write(PAGE_FOOTER)
     courses_output.close()
 
     # print course_page_contents
@@ -423,9 +422,9 @@ def process_faculty_courses_page(courses_url):
                 if not os.path.exists(output_dir + '/courses/' + course_dir):
                     os.makedirs(output_dir + '/courses/' + course_dir)
                 course_output = open(output_dir + '/courses/' + course_dir +'/index.pcf', 'w+')
-                course_output.write(page_header.replace('{{Page Title}}', course_title))
+                course_output.write(PAGE_HEADER.replace('{{Page Title}}', course_title))
                 course_output.write(course_contents)
-                course_output.write(page_footer)
+                course_output.write(PAGE_FOOTER)
                 course_output.close()
                 sidenav_output = open(output_dir + '/courses/' + course_dir + '/sidenav.inc', 'w+')
                 sidenav_output.write(sidenav)
@@ -437,7 +436,7 @@ def process_faculty_courses_page(courses_url):
     sidenav_output.close()
 
 # Main loop
-# Read command line
+""" Read command line """
 if not(len(sys.argv) > 1):
     print "Usage: "
     print "python migrate.py name : Process one faculty"
