@@ -1,7 +1,6 @@
 ''' 
 TODO:
 
-Use course title in sidenav
 
 '''
 #imports
@@ -18,62 +17,63 @@ import string
 import logging
 
 # set up logging
-logging.basicConfig(filename='migrate.log',level=logging.DEBUG)
+logging.basicConfig(filename='migrate.log', level=logging.DEBUG)
 
 # constants
-sjsu_home_url = "http://www.sjsu.edu"
-output_root = "people/"
-errors_root = "errors/"
-faculty_list_url = "http://www.sjsu.edu/people/a-z.jsp" 
+SJSU_HOME_URL = "http://www.sjsu.edu"
+OUTPUT_ROOT = "people/"
+ERRORS_ROOT = "errors/"
+FACULTY_LIST_URL = "http://www.sjsu.edu/people/a-z.jsp" 
 
-course_name_pattern = re.compile('\/courses\/(.*)"')
+COURSE_NAME_PATTERN = re.compile('\/courses\/(.*)"')
 
-faculty_directory_pattern = re.compile('http://www.sjsu.edu/people/(.*)/?')
+FACULTY_DIRECTORY_PATTERN = re.compile('http://www.sjsu.edu/people/(.*)/?')
 
-course_content_pattern = re.compile(
+COURSE_CONTENT_PATTERN = re.compile(
     '<div id="col_1_of_1_int_maintemplate">(.*)<div id="disclaimer_people">',re.S)
 
-faculty_link_pattern = re.compile('<li><a href="(/people/.*)">.*</a></li>')    
+FACULTY_LINK_PATTERN = re.compile('<li><a href="(/people/.*)">.*</a></li>')    
 
-page_contents_pattern = re.compile(
+PAGE_CONTENTS_PATTERN = re.compile(
     '<div id="pagetitle">.*?</div>(.*)</div>.*?</div>.*?<div id="disclaimer_people">', re.S)
 
-page_contents_pattern_b = re.compile(
+PAGE_CONTENTS_PATTERN_b = re.compile(
     '<div id="pagetitle">.*?</div>(.*)<div id="disclaimer_people">', re.S)
     
-page_contents_pattern_c = re.compile(
+PAGE_CONTENTS_PATTERN_c = re.compile(
     '<!-- start column one -->(.*)<!-- end column one -->', re.S)
 
-page_title_pattern = re.compile('<div id="pagetitle">.*?<h2>(.*)</h2>', re.S)
+PAGE_TITLE_PATTERN = re.compile('<div id="pagetitle">.*?<h2>(.*)</h2>', re.S)
 
-course_page_title_pattern = re.compile('<h2 class="red"></h2>.*?<h2>(.*)</h2>', re.S)
+COURSE_PAGE_TITLE_PATTERN = re.compile('<h2 class="red"></h2>.*?<h2>(.*)</h2>', re.S)
 
-unescaped_ampersand_pattern = re.compile('&(?!amp;)')
+UNESCAPED_AMPERSAND_PATTERN = re.compile('&(?!amp;)')
 
-courses_page_contents_pattern = re.compile('<h3>Courses</h3>.*?<ul>(.*)</ul>', re.S)
-# courses_page_contents_pattern = re.compile('<div id="pagetitle">.*?</div>(.*)</div>.*?</div>.*?<div id="disclaimer_people">', re.S)
+COURSES_PAGE_CONTENTS_PATTERN = re.compile('<h3>Courses</h3>.*?<ul>(.*)</ul>', re.S)
+# COURSES_PAGE_CONTENTS_PATTERN = re.compile('<div id="pagetitle">.*?</div>(.*)</div>.*?</div>.*?<div id="disclaimer_people">', re.S)
 
-primary_navigation_pattern = re.compile(
+PRIMARY_NAVIGATION_PATTERN = re.compile(
     '<div class="primary_top">(.*)<!-- end primary navigation -->', re.S)
     
-link_pattern = re.compile('<a href="(.*)">(.*)</a>')
+LINK_PATTERN = re.compile('<a href="(.*)">(.*)</a>')
 
-last_element_pattern = re.compile('.*(/.*/)')
+LAST_ELEMENT_PATTERN = re.compile('.*(/.*/)')
 
-faculty_name_pattern = re.compile('http://www.sjsu.edu/people/(.*)')
+FACULTY_NAME_PATTERN = re.compile('http://www.sjsu.edu/people/(.*)')
 
-page_title_placeholder_pattern = re.compile('{{.*?}}')
+PAGE_TITLE_PLACEHOLDER_PATTERN = re.compile('{{.*?}}')
 
-image_tag_pattern = '<img .*? src="(.*?)"'
+IMAGE_TAG_PATTERN = '<img .*? src="(.*?)"'
 
-local_doc_tag_pattern = '<a href="(/people/.*?\.(pdf|doc|jpg|docx|zip)?)"'
+LOCAL_DOC_TAG_PATTERN = '<a href="(/people/.*?\.(pdf|doc|jpg|docx|zip)?)"'
 
+'''
 standard_navigation_links = ["Courses", 
                              "Publications &amp; Presentations", 
                              "Research &amp; Scholarly Activity", 
                              "University Expert", 
                              "Professional &amp; Service Activity"]
-
+'''
 ignored_images = ["/pics/arrow.gif",
                 "http://www.sjsu.edu/pics/logo_vert_webglobal.gif"]
                              
@@ -91,26 +91,26 @@ with open ("header-home.txt", "r") as textfile:
     home_header = textfile.read()
     textfile.close()
     
-sidenav_header = '<!-- com.omniupdate.editor csspath="/sjsu/_resources/ou/editor/standard-sidenav.css" cssmenu="/sjsu/_resources/ou/editor/standard-sidenav.txt" width="798" -->'
+SIDENAV_HEADER = '<!-- com.omniupdate.editor csspath="/sjsu/_resources/ou/editor/standard-sidenav.css" cssmenu="/sjsu/_resources/ou/editor/standard-sidenav.txt" width="798" -->'
 
 # Functions
 
 # Get images
 def get_images(code):
     if code:
-        images = re.findall(image_tag_pattern, code)
+        images = re.findall(IMAGE_TAG_PATTERN, code)
         for image in images:
             if not image in ignored_images:
                 logging.info( "Found image: " + image )
     else:
-        print "code is empty"
+        logging.error("code is empty looking for images")
             
 # Get docs
 def get_docs(code):
     # Get list of links that match
     # <a href="(/people/.*?\.(pdf|doc|jpg|docx|zip)?)"
     if code:
-        docs = re.findall(local_doc_tag_pattern, code)
+        docs = re.findall(LOCAL_DOC_TAG_PATTERN, code)
         for doc in docs:
             # Clean up URL
             doc_path = doc[0].replace(' ', '%20')
@@ -148,9 +148,11 @@ def cleanup_code(code_in, old_name):
         # replace &nbsp; with space, <br> with <br />
         code_out = code_in.replace('&nbsp;', ' ').replace('<br>', '<br />')
         # replace & with &amp;
-        code_out = unescaped_ampersand_pattern.sub('&amp;', code_out)
+        code_out = UNESCAPED_AMPERSAND_PATTERN.sub('&amp;', code_out)
         # fix links to reflect new directory name
         new_name = fix_name(old_name)
+        print "Replacing " + old_name + " with " + new_name
+        logging.info("Replacing " + old_name + " with " + new_name)
         code_out = code_out.replace(old_name, new_name)
         return code_out
     else:
@@ -171,18 +173,11 @@ def validate(content):
         return error_message
 
 # Read a generic page and output its content
-def output_page(faculty_name, page_url, page_name):
-    faculty_root = output_root + faculty_name
-    site_section = last_element_pattern.match(page_url).group(1)
-    '''
-    if (site_section == '/publications/' 
-        or site_section == '/research/'
-        or site_section == '/expert/'):
-    
-    page_contents = get_page_contents(page_url)
-        if (page_contents == ""):
-            logging.info( "No match found in " + page_url )
-    '''        
+def output_page(old_name, page_url, page_name):
+    new_name = fix_name(old_name)
+    faculty_root = OUTPUT_ROOT + new_name
+    site_section = LAST_ELEMENT_PATTERN.match(page_url).group(1)
+      
     if (site_section == '/courses/'):
         process_faculty_courses_page(page_url)
         return
@@ -192,7 +187,7 @@ def output_page(faculty_name, page_url, page_name):
     if (not page_contents or page_contents == ""):
         logging.error( "empty page " + page_url )
     else:
-        page_contents = cleanup_code(page_contents, faculty_name)
+        page_contents = cleanup_code(page_contents, old_name)
         
         # Need to change links to replace . with -
         
@@ -207,7 +202,7 @@ def output_page(faculty_name, page_url, page_name):
         output_content.write(page_contents)
         output_content.write(page_footer)
 
-        directory_name = last_element_pattern.match(page_url).group(1)
+        directory_name = LAST_ELEMENT_PATTERN.match(page_url).group(1)
         # Make sure content is valid
         validation_results = validate(output_content)
         if (validation_results == "valid"):
@@ -217,15 +212,15 @@ def output_page(faculty_name, page_url, page_name):
                 logging.info( "Creating dir " + faculty_root + directory_name )
                 os.makedirs(faculty_root + '/' + directory_name + '/')
             # Open output file
-            page_output = open(output_root + faculty_name + '/' + directory_name + '/index.pcf', 'w+')
+            page_output = open(OUTPUT_ROOT + new_name + '/' + directory_name + '/index.pcf', 'w+')
             page_output.write(output_content.getvalue())
             page_output.close()
-            sidenav_output = open(output_root + faculty_name + '/' + directory_name + '/sidenav.inc', 'w+')
-            sidenav_output.write(sidenav_header)
+            sidenav_output = open(OUTPUT_ROOT + new_name + '/' + directory_name + '/sidenav.inc', 'w+')
+            sidenav_output.write(SIDENAV_HEADER)
             sidenav_output.close()
         else:
             # File is not valid XML
-            error_directory = errors_root + faculty_name + '/' + directory_name + '/'
+            error_directory = ERRORS_ROOT + new_name + '/' + directory_name + '/'
             if not os.path.exists(error_directory):
                 os.makedirs(error_directory)
             error_output = open(error_directory + 'errors.xml', 'w+')
@@ -236,10 +231,10 @@ def output_page(faculty_name, page_url, page_name):
 
 # Process one faculty site
 def  process_faculty_home_page(faculty_home_url):
-    faculty_name = faculty_name_pattern.match(faculty_home_url).group(1)
+    faculty_name = FACULTY_NAME_PATTERN.match(faculty_home_url).group(1)
     logging.info("Processing " + faculty_name)
-    directory_name_match = faculty_directory_pattern.match(faculty_home_url)
-    output_directory = output_root + fix_name(directory_name_match.group(1))
+    directory_name_match = FACULTY_DIRECTORY_PATTERN.match(faculty_home_url)
+    output_directory = OUTPUT_ROOT + fix_name(directory_name_match.group(1))
     
     try:
         faculty_page = urllib2.urlopen(faculty_home_url)
@@ -254,19 +249,19 @@ def  process_faculty_home_page(faculty_home_url):
     faculty_page_raw = faculty_page.read()
 
     # Get links
-    primary_nav_match = primary_navigation_pattern.search(faculty_page_raw)
+    primary_nav_match = PRIMARY_NAVIGATION_PATTERN.search(faculty_page_raw)
     
     get_images(faculty_page_raw)
     get_docs(faculty_page_raw)
     
     # Process Links
-    links = re.findall(link_pattern, primary_nav_match.group(1))
-    sidenav_content = sidenav_header
+    links = re.findall(LINK_PATTERN, primary_nav_match.group(1))
+    sidenav_content = SIDENAV_HEADER
     for link in links:
         link_url = link[0]
         link_text = link[1]
         if not link_text == "Home":
-            output_page(fix_name(faculty_name), sjsu_home_url + link_url, link_text)
+            output_page(faculty_name, SJSU_HOME_URL + link_url, link_text)
             sidenav_content += '<li><a href="' + fix_name(link_url) + '">' + link_text + '</a></li>'
     
     sidenav_output = open(output_directory + '/sidenav.inc', 'w+')
@@ -274,12 +269,12 @@ def  process_faculty_home_page(faculty_home_url):
     sidenav_output.close()
     
     # Read Faculty Home Page
-    # faculty_page_match = page_contents_pattern.search(faculty_page_raw)
+    # faculty_page_match = PAGE_CONTENTS_PATTERN.search(faculty_page_raw)
  
     # Get full name
     full_name = get_page_title(faculty_home_url)
 
-    faculty_page_match = page_contents_pattern_b.search(faculty_page_raw)
+    faculty_page_match = PAGE_CONTENTS_PATTERN_b.search(faculty_page_raw)
     if faculty_page_match:
         faculty_page_contents = cleanup_code(faculty_page_match.group(1), faculty_name)
         home_output.write(home_header.replace('{{Page Title}}', full_name))
@@ -291,11 +286,11 @@ def  process_faculty_home_page(faculty_home_url):
 
 # Open a course, read the contents, return part that matches pattern
 def get_course_page_contents(page_url):
-    faculty_name = faculty_name_pattern.match(page_url).group(1)
+    faculty_name = FACULTY_NAME_PATTERN.match(page_url).group(1)
     try:
         page = urllib2.urlopen(page_url)
         raw = page.read()
-        match = course_content_pattern.search(raw)
+        match = COURSE_CONTENT_PATTERN.search(raw)
         if match:
             contents = match.group(1)
             return cleanup_code(contents, faculty_name)
@@ -309,11 +304,11 @@ def get_course_page_contents(page_url):
 # get contents of courses page
 def get_courses_page_contents(page_url):
     logging.info( "opening " + page_url )
-    faculty_name = faculty_name_pattern.match(page_url).group(1)
+    faculty_name = FACULTY_NAME_PATTERN.match(page_url).group(1)
     try:
         page = urllib2.urlopen(page_url)
         raw = page.read()
-        match = courses_page_contents_pattern.search(raw)
+        match = COURSES_PAGE_CONTENTS_PATTERN.search(raw)
         if match:
             contents = match.group(1)
             return cleanup_code(contents, faculty_name)
@@ -331,11 +326,11 @@ def get_page_title(page_url):
     try:
         page = urllib2.urlopen(page_url)
         raw = page.read()
-        match = page_title_pattern.search(raw)
+        match = PAGE_TITLE_PATTERN.search(raw)
         if match:
             title = match.group(1)
         else:
-            match = course_page_title_pattern.search(raw)
+            match = course_PAGE_TITLE_PATTERN.search(raw)
             if match:
                 title = match.group(1)
         return title
@@ -353,19 +348,19 @@ def get_page_contents(page_url):
         get_images(raw)
         get_docs(raw)
         
-        match = courses_page_contents_pattern.search(raw)
+        match = COURSES_PAGE_CONTENTS_PATTERN.search(raw)
         if match:
             logging.info("matched courses page pattern")
             contents = match.group(1)
             return contents
         else:
-            match = page_contents_pattern_b.search(raw)
+            match = PAGE_CONTENTS_PATTERN_b.search(raw)
             if match:
                 logging.info("matched pattern b")
                 contents = match.group(1)
                 return contents
             else:
-                match = page_contents_pattern_c.search(raw)
+                match = PAGE_CONTENTS_PATTERN_c.search(raw)
                 if match:
                     logging.info("matched pattern c")
                     contents = match.group(1)
@@ -392,8 +387,8 @@ def process_faculty_courses_page(courses_url):
     
     get_images(courses_page_contents)
     get_docs(courses_page_contents)
-    sidenav = sidenav_header
-    output_dir = output_root + fix_name(faculty_name)
+    sidenav = SIDENAV_HEADER
+    output_dir = OUTPUT_ROOT + fix_name(faculty_name)
     if not os.path.exists(output_dir + '/courses/'):
         os.makedirs(output_dir + '/courses/')
     courses_output = open(output_dir + '/courses/index.pcf', 'w+')
@@ -404,7 +399,7 @@ def process_faculty_courses_page(courses_url):
     courses_output.close()
 
     # print course_page_contents
-    link_list = re.findall(course_name_pattern, 
+    link_list = re.findall(COURSE_NAME_PATTERN, 
                                           courses_page_contents)
     
     # Process all course links
@@ -454,11 +449,11 @@ else:
         process_faculty_home_page(faculty_url)
     else:
         # Get list of all published faculty sites
-        data = urllib2.urlopen(faculty_list_url)
-        all_faculty_links = re.findall(faculty_link_pattern, data.read())
+        data = urllib2.urlopen(FACULTY_LIST_URL)
+        all_faculty_links = re.findall(FACULTY_LINK_PATTERN, data.read())
 
         #  Process  each  faculty  site
         for faculty_home_link in all_faculty_links:
-            current_url = sjsu_home_url + faculty_home_link
+            current_url = SJSU_HOME_URL + faculty_home_link
             logging.info("\n\nProcessing " + current_url)
             process_faculty_home_page(current_url)
