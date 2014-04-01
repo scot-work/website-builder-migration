@@ -65,15 +65,8 @@ PAGE_TITLE_PLACEHOLDER_PATTERN = re.compile('{{.*?}}')
 
 IMAGE_TAG_PATTERN = '<img .*? src="(.*?)"'
 
-LOCAL_DOC_TAG_PATTERN = '<a href="(/people/.*?\.(pdf|doc|jpg|docx|zip)?)"'
+LOCAL_DOC_TAG_PATTERN = r'<a href="(/people/.*?\.(pdf|doc|jpg|docx|zip)?)"'
 
-'''
-standard_navigation_links = ["Courses", 
-                             "Publications &amp; Presentations", 
-                             "Research &amp; Scholarly Activity", 
-                             "University Expert", 
-                             "Professional &amp; Service Activity"]
-'''
 IGNORED_IMAGES = ["/pics/arrow.gif",
                 "http://www.sjsu.edu/pics/logo_vert_webglobal.gif"]
                              
@@ -132,8 +125,8 @@ def get_docs(code):
                 local_doc = open(output_path, 'w+')
                 local_doc.write(remote.read())
                 local_doc.close()
-            except Exception as e:
-                error_message = str(e.args)
+            except Exception as err:
+                error_message = str(err.args)
                 logging.error( "Error: " + error_message + ' in ' + file_name )
     else:
         print "code is empty"
@@ -160,7 +153,7 @@ def cleanup_code(code_in, old_name):
 """ Determine if this is valid XML """
 def validate(content):
     valid = True
-    parser = etree.XMLParser(dtd_validation=True)
+    # parser = etree.XMLParser(dtd_validation=True)
     try:
         root = etree.fromstring(content.getvalue())
     except Exception as e:
