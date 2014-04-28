@@ -1,11 +1,12 @@
 ''' 
 TODO:
 
+Handle unicode in file names
 
 '''
 #imports
 import urllib2
-# import urllib
+import urllib
 from urllib2 import HTTPError
 import re
 import sys
@@ -17,7 +18,8 @@ import string
 import logging
 
 # set up logging
-logging.basicConfig(filename='migrate.log', level=logging.DEBUG)
+# logging.basicConfig(filename='migrate.log', level=logging.DEBUG)
+logging.basicConfig(filename='migrate.log', level=logging.ERROR)
 
 # constants
 SJSU_HOME_URL = "http://www.sjsu.edu"
@@ -50,7 +52,6 @@ COURSE_PATE_TITLE_PATTERN = re.compile('<h2 class="red"></h2>.*?<h2>(.*)</h2>', 
 UNESCAPED_AMPERSAND_PATTERN = re.compile('&(?!amp;)')
 
 COURSES_PAGE_CONTENTS_PATTERN = re.compile('<h3>Courses</h3>.*?<ul>(.*)</ul>', re.S)
-# COURSES_PAGE_CONTENTS_PATTERN = re.compile('<div id="pagetitle">.*?</div>(.*)</div>.*?</div>.*?<div id="disclaimer_people">', re.S)
 
 PRIMARY_NAVIGATION_PATTERN = re.compile(
     '<div class="primary_top">(.*)<!-- end primary navigation -->', re.S)
@@ -61,11 +62,12 @@ LAST_ELEMENT_PATTERN = re.compile('.*(/.*/)')
 
 FACULTY_NAME_PATTERN = re.compile('http://www.sjsu.edu/people/(.*)')
 
-PAGE_TITLE_PLACEHOLDER_PATTERN = re.compile('{{.*?}}')
-
 IMAGE_TAG_PATTERN = '<img .*? src="(.*?)"'
 
 LOCAL_DOC_TAG_PATTERN = r'<a href="(/people/.*?\.(pdf|doc|jpg|docx|zip)?)"'
+
+# Many publications pages have invalid code
+PUBLICATIONS_PAGE_BAD_XML_PATTERN = re.compile('<p>\s*?</li>', re.S)
 
 IGNORED_IMAGES = ["/pics/arrow.gif",
                 "http://www.sjsu.edu/pics/logo_vert_webglobal.gif"]
@@ -112,6 +114,8 @@ def get_docs(code):
             # Change file name back to match link
             file_name = doc_path[string.rfind(doc_path, '/') + 1:].replace('%20', ' ')
             logging.info("reading file: " + file_name)
+            # logging.info("urlencoded name: " + urllib.quote_plus(file_name))
+            # print "encoded name: " + file_name.encode('utf-8')
             
             # Create directory if necessary
             if not os.path.exists(output_dir):
@@ -120,7 +124,9 @@ def get_docs(code):
                     
             try:
                 remote = urllib2.urlopen(doc_url)
-                output_path = output_dir + '/' + file_name
+                # output_path = output_dir + '/' + file_name)
+                output_path = output_dir + '/' + urllib.quote_plus(file_name)
+                output_path = output_path.replace('+', ' ')
                 logging.info( "Writing " + output_path )
                 local_doc = open(output_path, 'w+')
                 local_doc.write(remote.read())
@@ -138,6 +144,8 @@ def fix_name(faculty_name):
 """ Replace unknown entities and unclosed BR tags """
 def cleanup_code(code_in, old_name):
     if code_in:
+        # fix xml problem in publications pages
+        code_in = fix_publication_xml(code_in)
         # replace &nbsp; with space, <br> with <br />
         code_out = code_in.replace('&nbsp;', ' ').replace('<br>', '<br />')
         # replace & with &amp;
@@ -149,6 +157,15 @@ def cleanup_code(code_in, old_name):
         return code_out
     else:
         return ""
+
+""" Fix problem specific to Publications page """
+def fix_publication_xml(code_in):
+    match = PUBLICATIONS_PAGE_BAD_XML_PATTERN.search(code_in)
+    if match:
+        bad_xml = match.group(0)
+        print "bad xml: " + bad_xml
+        code_in = code_in.replace(bad_xml, '</p>\n</li>')
+    return code_in
     
 """ Determine if this is valid XML """
 def validate(content):
@@ -216,6 +233,7 @@ def output_page(old_name, page_url, page_name):
             if not os.path.exists(error_directory):
                 os.makedirs(error_directory)
             error_output = open(error_directory + 'errors.xml', 'w+')
+            logging.error("Invalid XML " + page_url + ": " + validation_results)
             error_output.write(validation_results + output_content.getvalue())
             error_output.close()
         output_content.close()
@@ -288,7 +306,7 @@ def get_course_page_contents(page_url):
             return cleanup_code(contents, faculty_name)
         else:
             logging.error( "No course content found in " + page_url )
-            logging.error( raw )
+            logging.info( raw )
             return ""
     except:
         logging.error( "Could not open page " + page_url )
@@ -306,7 +324,7 @@ def get_courses_page_contents(page_url):
             return cleanup_code(contents, faculty_name)
         else:
             logging.error( "No course content found in " + page_url )
-            logging.error( raw )
+            logging.info( raw )
             return ""
     except Exception as e:
         error_message = str(e.args)
