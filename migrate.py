@@ -2,6 +2,7 @@
 TODO:
 
 Handle unicode in file names
+Courses page title is Faculty name
 
 '''
 #imports
@@ -18,8 +19,8 @@ import string
 import logging
 
 # set up logging
-# logging.basicConfig(filename='migrate.log', level=logging.DEBUG)
-logging.basicConfig(filename='migrate.log', level=logging.ERROR)
+logging.basicConfig(filename='migrate.log', level=logging.DEBUG)
+# logging.basicConfig(filename='migrate.log', level=logging.ERROR)
 
 # constants
 SJSU_HOME_URL = "http://www.sjsu.edu"
@@ -279,7 +280,7 @@ def  process_faculty_home_page(faculty_home_url):
     sidenav_output.close()
     
     # Read Faculty Home Page
-    # faculty_page_match = PAGE_CONTENTS_PATTERN.search(faculty_page_raw)
+    #faculty_page_match = PAGE_CONTENTS_PATTERN.search(faculty_page_raw)
  
     # Get full name
     full_name = get_page_title(faculty_home_url)
@@ -288,6 +289,7 @@ def  process_faculty_home_page(faculty_home_url):
     if faculty_page_match:
         faculty_page_contents = cleanup_code(faculty_page_match.group(1), faculty_name)
         home_output.write(HOME_HEADER.replace('{{Page Title}}', full_name))
+        home_output.write(faculty_page_contents)
         home_output.write(PAGE_FOOTER)
         home_output.close()
     else:

@@ -12,6 +12,7 @@ python migrate.py carol.mukhopadhyay >> out.txt
 python migrate.py tsau.lin >> out.txt
 python migrate.py marcos.pizarro >> out.txt
 python migrate.py gordon.haramaki >> out.txt
+python migrate.py carol.mukhopadhyay >> out.txt
 cd people
 zip -r archive.zip * >> null
 echo 'done'
