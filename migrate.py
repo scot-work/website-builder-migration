@@ -2,7 +2,7 @@
 TODO:
 
 Handle unicode in file names
-Courses page title is Faculty name
+Photo
 
 '''
 #imports
@@ -70,6 +70,24 @@ LOCAL_DOC_TAG_PATTERN = r'<a href="(/people/.*?\.(pdf|doc|jpg|docx|zip)?)"'
 # Many publications pages have invalid code
 PUBLICATIONS_PAGE_BAD_XML_PATTERN = re.compile('<p>\s*?</li>', re.S)
 
+# Try to capture sections of home page
+# Courses (can probably ignore, since we already have this)
+HOME_COURSE_LINK_PATTERN = re.compile('<h3 class="facingpg_section">Courses</h3>.*?</ul>', re.S)
+ 
+# Education
+HOME_EDUCATION_PATTERN = re.compile('<div id="facingpg_education" >(.*?)</div>', re.S)
+
+# Licenses and Certificates
+HOME_LICENSES_PATTERN = re.compile('<div id="facingpg_liccert" >(.*?)</div>', re.S)
+
+# Bio
+HOME_BIO_PATTERN = re.compile('<div id="facingpg_bio" >(.*?)</div>', re.S)
+
+# Links
+HOME_LINKS_PATTERN = re.compile('<div id="facingpg_links" >(.*?)</div>', re.S)
+
+# end of home page sections
+
 IGNORED_IMAGES = ["/pics/arrow.gif",
                 "http://www.sjsu.edu/pics/logo_vert_webglobal.gif"]
                              
@@ -86,8 +104,9 @@ with open ("header-interior.txt", "r") as textfile:
 with open ("header-home.txt", "r") as textfile:
     HOME_HEADER = textfile.read()
     textfile.close()
-    
-SIDENAV_HEADER = '<!-- com.omniupdate.editor csspath="/sjsu/_resources/ou/editor/standard-sidenav.css" cssmenu="/sjsu/_resources/ou/editor/standard-sidenav.txt" width="798" -->'
+
+# This will cause an error message. Need to find the correct CSS file    
+SIDENAV_HEADER = '<!-- com.omniupdate.editor -->'
 
 # Functions
 
@@ -137,6 +156,25 @@ def get_docs(code):
                 logging.error( "Error: " + error_message + ' in ' + file_name )
     else:
         print "code is empty"
+
+def find_home_sections(contents):
+    education_match = HOME_EDUCATION_PATTERN.search(contents)
+    licenses_match = HOME_LICENSES_PATTERN.search(contents)
+    bio_match = HOME_BIO_PATTERN.search(contents)
+    links_match = HOME_LINKS_PATTERN.search(contents)
+
+    if (education_match):
+        education_section = education_match.group(1)
+        print "Bio: " + bio_section
+    if (licenses_match):
+        licenses_section = licenses_match.group(1)
+        print "Licenses: " + bio_section
+    if (bio_match):
+        bio_section = bio_match.group(1)
+        print "Bio: " + bio_section
+    if (links_match):
+        links_section = links_match.group(1)
+        print "Links: " + links_section
 
 """ Periods and apostrophes are not allowed in OU, so replace in directory names """
 def fix_name(faculty_name):
@@ -205,10 +243,11 @@ def output_page(old_name, page_url, page_name):
         full_name = get_page_title(page_url)
         if not full_name:
             logging.error( "Page title not found " + page_url )
+            full_name = "Page Title"
         
         # assemble the file
         output_content = StringIO.StringIO()
-        output_content.write(PAGE_HEADER)
+        output_content.write(PAGE_HEADER.replace('{{Page Title}}', full_name))
         output_content.write(page_contents)
         output_content.write(PAGE_FOOTER)
 
@@ -264,6 +303,8 @@ def  process_faculty_home_page(faculty_home_url):
     
     get_images(faculty_page_raw)
     get_docs(faculty_page_raw)
+
+    find_home_sections(faculty_page_raw)
     
     # Process Links
     links = re.findall(LINK_PATTERN, primary_nav_match.group(1))
@@ -405,7 +446,7 @@ def process_faculty_courses_page(courses_url):
         os.makedirs(output_dir + '/courses/')
     courses_output = open(output_dir + '/courses/index.pcf', 'w+')
     full_name = get_page_title(courses_url)
-    courses_output.write(PAGE_HEADER.replace('{{Page Title}}', full_name))
+    courses_output.write(PAGE_HEADER.replace('{{Page Title}}', full_name + " Courses"))
     courses_output.write(cleanup_code(courses_page_contents, faculty_name))
     courses_output.write(PAGE_FOOTER)
     courses_output.close()
